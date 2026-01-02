@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Lead, LeadStatus, RequirementType, LeadSource } from '@/types';
 import {
   Dialog,
@@ -17,6 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface LeadFormModalProps {
   open: boolean;
@@ -39,8 +44,9 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
     preferredLocation: '',
     source: 'website' as LeadSource,
     status: 'pending' as LeadStatus,
-    followUpDate: '',
+    followUpDate: null as Date | null,
   });
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   useEffect(() => {
     if (lead) {
@@ -57,7 +63,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
         preferredLocation: lead.preferredLocation || '',
         source: lead.source || 'website',
         status: lead.status,
-        followUpDate: lead.followUpDate ? lead.followUpDate.toISOString().split('T')[0] : '',
+        followUpDate: lead.followUpDate || null,
       });
     } else {
       setFormData({
@@ -73,16 +79,24 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
         preferredLocation: '',
         source: 'website',
         status: 'pending',
-        followUpDate: '',
+        followUpDate: null,
       });
     }
   }, [lead, open]);
+
+  const handleStatusChange = (value: LeadStatus) => {
+    setFormData({ ...formData, status: value });
+    // Auto-open date picker when reminder is selected
+    if (value === 'reminder') {
+      setTimeout(() => setIsDatePickerOpen(true), 100);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       ...formData,
-      followUpDate: formData.followUpDate ? new Date(formData.followUpDate) : undefined,
+      followUpDate: formData.followUpDate || undefined,
     });
   };
 
@@ -203,7 +217,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
               <Label>Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: LeadStatus) => setFormData({ ...formData, status: value })}
+                onValueChange={handleStatusChange}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -256,14 +270,34 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="followUpDate">Follow-up Date</Label>
-              <Input
-                id="followUpDate"
-                type="date"
-                value={formData.followUpDate}
-                onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
-                className="input-field"
-              />
+              <Label>Follow-up Date {formData.status === 'reminder' && <span className="text-destructive">*</span>}</Label>
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.followUpDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.followUpDate ? format(formData.followUpDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.followUpDate || undefined}
+                    onSelect={(date) => {
+                      setFormData({ ...formData, followUpDate: date || null });
+                      setIsDatePickerOpen(false);
+                    }}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

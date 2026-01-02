@@ -1,8 +1,10 @@
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
+import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
+import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import { mockLeads, mockTasks, mockLeaves, mockUsers, mockAnnouncements } from '@/data/mockData';
-import { Users, ClipboardList, CheckSquare, CalendarOff, TrendingUp, Target } from 'lucide-react';
+import { Users, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ManagerDashboard() {
@@ -79,10 +81,18 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
+          {/* Tasks by Status Chart */}
+          <TaskStatusChart tasks={mockTasks} title="Team Tasks by Status" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Reminders Widget */}
+          <RemindersWidget leads={mockLeads} tasks={mockTasks} />
+
           {/* Team Overview */}
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4">Team Overview</h3>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-80 overflow-y-auto">
               {staffMembers.map((staff, index) => {
                 const staffLeads = mockLeads.filter(l => l.createdBy === staff.id).length;
                 const staffTasks = mockTasks.filter(t => t.assignedTo === staff.id).length;
