@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { mockProjects } from '@/data/mockData';
+import { Project } from '@/types';
 import ProjectCard from './ProjectCard';
+import ProjectFormModal from './ProjectFormModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Search, Plus, LayoutGrid, List } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ProjectListProps {
   canCreate?: boolean;
@@ -21,8 +24,10 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [projects, setProjects] = useState<Project[]>(mockProjects);
 
-  const filteredProjects = mockProjects.filter(project => {
+  const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.location.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -31,6 +36,16 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
     
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  const handleAddProject = (projectData: Omit<Project, 'id' | 'createdAt'>) => {
+    const newProject: Project = {
+      ...projectData,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+    setProjects([newProject, ...projects]);
+    toast.success('Project added successfully!');
+  };
 
   return (
     <div className="space-y-6">
@@ -93,7 +108,7 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
           </div>
 
           {canCreate && (
-            <Button className="btn-accent">
+            <Button className="btn-accent" onClick={() => setIsFormOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Project
             </Button>
@@ -113,6 +128,13 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
           <p className="text-muted-foreground">No projects found</p>
         </div>
       )}
+
+      {/* Add Project Modal */}
+      <ProjectFormModal
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSubmit={handleAddProject}
+      />
     </div>
   );
 }
