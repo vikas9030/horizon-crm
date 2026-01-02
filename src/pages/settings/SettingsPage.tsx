@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,18 +6,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { User, Bell, Shield, Palette, Save } from 'lucide-react';
+import { User, Bell, Shield, Palette, Save, Camera, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Profile settings
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [address, setAddress] = useState(user?.address || '');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -34,6 +39,52 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id || 'user'}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(filePath);
+
+      setAvatarUrl(publicUrl);
+      toast.success('Profile picture uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Failed to upload profile picture');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSaveProfile = () => {
     toast.success('Profile updated successfully!');
@@ -101,12 +152,35 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center text-white text-2xl font-bold">
-                    {user?.name.charAt(0)}
+                  <div className="relative group">
+                    <Avatar className="w-20 h-20 cursor-pointer" onClick={handleAvatarClick}>
+                      <AvatarImage src={avatarUrl || undefined} alt={user?.name} />
+                      <AvatarFallback className="gradient-primary text-white text-2xl font-bold">
+                        {user?.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div 
+                      className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={handleAvatarClick}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      ) : (
+                        <Camera className="w-6 h-6 text-white" />
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">{user?.name}</h3>
                     <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Click avatar to upload new picture</p>
                   </div>
                 </div>
                 
