@@ -3,6 +3,7 @@ import { Lead } from '@/types';
 import { mockLeads } from '@/data/mockData';
 import LeadStatusChip from './LeadStatusChip';
 import LeadFormModal from './LeadFormModal';
+import LeadDetailsModal from './LeadDetailsModal';
 import ExcelImportExport from './ExcelImportExport';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +57,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [viewingLead, setViewingLead] = useState<Lead | null>(null);
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = 
@@ -266,7 +268,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setViewingLead(lead)}>
                         <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </DropdownMenuItem>
@@ -309,6 +311,12 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
         onClose={() => { setIsFormOpen(false); setEditingLead(null); }}
         onSave={handleSaveLead}
         lead={editingLead}
+      />
+
+      <LeadDetailsModal
+        open={!!viewingLead}
+        onClose={() => setViewingLead(null)}
+        lead={viewingLead}
       />
     </div>
   );
