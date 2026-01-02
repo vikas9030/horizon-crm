@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Project, ProjectStatus } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { X, MapPin, Calendar, Building } from 'lucide-react';
+import { X, MapPin, Calendar, Building, Hammer, Clock, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProjectStatusChartProps {
@@ -16,9 +16,21 @@ const statusMap: Record<string, ProjectStatus> = {
 };
 
 const statusColors: Record<string, string> = {
-  'Ongoing': 'hsl(215, 80%, 50%)',
-  'Upcoming': 'hsl(38, 95%, 55%)',
-  'Completed': 'hsl(160, 70%, 40%)',
+  'Ongoing': 'hsl(217, 91%, 60%)',
+  'Upcoming': 'hsl(45, 93%, 47%)',
+  'Completed': 'hsl(152, 69%, 31%)',
+};
+
+const statusGradients: Record<string, string> = {
+  'Ongoing': 'from-blue-500 to-indigo-600',
+  'Upcoming': 'from-amber-400 to-orange-500',
+  'Completed': 'from-emerald-500 to-teal-600',
+};
+
+const statusIcons: Record<string, React.ElementType> = {
+  'Ongoing': Hammer,
+  'Upcoming': Clock,
+  'Completed': CheckCircle2,
 };
 
 export default function ProjectStatusChart({ projects, title = "Projects Overview" }: ProjectStatusChartProps) {
@@ -34,6 +46,8 @@ export default function ProjectStatusChart({ projects, title = "Projects Overvie
     ? projects.filter(p => p.status === statusMap[selectedStatus])
     : [];
 
+  const totalProjects = projects.length;
+
   const handleClick = (data: any) => {
     if (selectedStatus === data.name) {
       setSelectedStatus(null);
@@ -48,15 +62,58 @@ export default function ProjectStatusChart({ projects, title = "Projects Overvie
     return `$${val}`;
   };
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const Icon = statusIcons[data.name];
+      const percentage = totalProjects > 0 ? ((data.count / totalProjects) * 100).toFixed(1) : 0;
+      return (
+        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-3 shadow-xl">
+          <div className="flex items-center gap-2 mb-1">
+            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${statusGradients[data.name]} flex items-center justify-center`}>
+              <Icon className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{data.name}</p>
+              <p className="text-sm text-muted-foreground">{data.count} projects ({percentage}%)</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
-      <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
-      <div className="h-64">
+    <div className="glass-card rounded-2xl p-6 animate-slide-up relative overflow-hidden" style={{ animationDelay: '150ms' }}>
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-info/10 to-transparent rounded-full blur-3xl" />
+      
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-info to-info/70 flex items-center justify-center">
+            <Building className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground">{totalProjects} total projects</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={projectsByStatus} layout="vertical">
+          <BarChart data={projectsByStatus} layout="vertical" barCategoryGap="20%">
             <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} />
-            <Tooltip />
+            <YAxis 
+              type="category" 
+              dataKey="name" 
+              axisLine={false} 
+              tickLine={false}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              width={80}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.3)' }} />
             <Bar 
               dataKey="count" 
               radius={[0, 8, 8, 0]}
@@ -66,8 +123,11 @@ export default function ProjectStatusChart({ projects, title = "Projects Overvie
               {projectsByStatus.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={selectedStatus === entry.name ? statusColors[entry.name] : 'hsl(215, 80%, 35%)'}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  fill={statusColors[entry.name]}
+                  className="cursor-pointer transition-all duration-300 hover:opacity-80"
+                  style={{
+                    filter: selectedStatus === entry.name ? 'brightness(1.2)' : 'none',
+                  }}
                 />
               ))}
             </Bar>
@@ -75,26 +135,27 @@ export default function ProjectStatusChart({ projects, title = "Projects Overvie
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
+      {/* Legend with icons */}
       <div className="flex flex-wrap justify-center gap-3 mt-4">
-        {projectsByStatus.map((item) => (
-          <button
-            key={item.name}
-            onClick={() => {
-              if (selectedStatus === item.name) {
-                setSelectedStatus(null);
-              } else {
-                setSelectedStatus(item.name);
-              }
-            }}
-            className={`flex items-center gap-2 px-2 py-1 rounded-md transition-all ${
-              selectedStatus === item.name ? 'bg-muted ring-2 ring-primary' : 'hover:bg-muted/50'
-            }`}
-          >
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: statusColors[item.name] }} />
-            <span className="text-xs text-muted-foreground">{item.name} ({item.count})</span>
-          </button>
-        ))}
+        {projectsByStatus.map((item) => {
+          const Icon = statusIcons[item.name];
+          return (
+            <button
+              key={item.name}
+              onClick={() => handleClick(item)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${
+                selectedStatus === item.name 
+                  ? 'bg-muted ring-2 ring-primary shadow-lg' 
+                  : 'hover:bg-muted/50'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${statusGradients[item.name]} flex items-center justify-center`}>
+                <Icon className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-sm font-medium text-foreground">{item.name} ({item.count})</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filtered Details */}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Task, TaskStatus } from '@/types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Sector } from 'recharts';
-import { X, Calendar, Phone } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { X, Calendar, Phone, MapPin, Users, Clock, CheckCircle, XCircle, ListTodo } from 'lucide-react';
 import TaskStatusChip from '@/components/tasks/TaskStatusChip';
 import { format } from 'date-fns';
 
@@ -18,21 +18,31 @@ const statusMap: Record<string, TaskStatus> = {
   'Rejected': 'rejected',
 };
 
+const statusIcons: Record<string, React.ElementType> = {
+  'Visit': MapPin,
+  'Family Visit': Users,
+  'Pending': Clock,
+  'Completed': CheckCircle,
+  'Rejected': XCircle,
+};
+
 export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: TaskStatusChartProps) {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const tasksByStatus = [
-    { name: 'Visit', value: tasks.filter(t => t.status === 'visit').length, color: 'hsl(215, 80%, 50%)', status: 'visit' },
-    { name: 'Family Visit', value: tasks.filter(t => t.status === 'family_visit').length, color: 'hsl(280, 70%, 55%)', status: 'family_visit' },
-    { name: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: 'hsl(38, 95%, 55%)', status: 'pending' },
-    { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'hsl(160, 70%, 40%)', status: 'completed' },
-    { name: 'Rejected', value: tasks.filter(t => t.status === 'rejected').length, color: 'hsl(0, 75%, 55%)', status: 'rejected' },
+    { name: 'Visit', value: tasks.filter(t => t.status === 'visit').length, color: 'hsl(217, 91%, 60%)', gradient: 'from-blue-500 to-indigo-600', status: 'visit' },
+    { name: 'Family Visit', value: tasks.filter(t => t.status === 'family_visit').length, color: 'hsl(280, 73%, 52%)', gradient: 'from-purple-500 to-violet-600', status: 'family_visit' },
+    { name: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: 'hsl(45, 93%, 47%)', gradient: 'from-amber-400 to-orange-500', status: 'pending' },
+    { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'hsl(152, 69%, 31%)', gradient: 'from-emerald-500 to-teal-600', status: 'completed' },
+    { name: 'Rejected', value: tasks.filter(t => t.status === 'rejected').length, color: 'hsl(0, 84%, 60%)', gradient: 'from-red-500 to-rose-600', status: 'rejected' },
   ].filter(item => item.value > 0);
 
   const filteredTasks = selectedStatus 
     ? tasks.filter(t => t.status === statusMap[selectedStatus])
     : [];
+
+  const totalTasks = tasks.length;
 
   const handleClick = (data: any, index: number) => {
     if (selectedStatus === data.name) {
@@ -44,28 +54,42 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
     }
   };
 
-  const renderActiveShape = (props: any) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
-    return (
-      <g>
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={innerRadius - 4}
-          outerRadius={outerRadius + 8}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill={fill}
-        />
-      </g>
-    );
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const Icon = statusIcons[data.name];
+      const percentage = totalTasks > 0 ? ((data.value / totalTasks) * 100).toFixed(1) : 0;
+      return (
+        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-3 shadow-xl">
+          <div className="flex items-center gap-2 mb-1">
+            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${data.gradient} flex items-center justify-center`}>
+              <Icon className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{data.name}</p>
+              <p className="text-sm text-muted-foreground">{data.value} tasks ({percentage}%)</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   if (tasksByStatus.length === 0) {
     return (
-      <div className="glass-card rounded-2xl p-6 animate-slide-up">
-        <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
-        <div className="h-64 flex items-center justify-center text-muted-foreground">
+      <div className="glass-card rounded-2xl p-6 animate-slide-up relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-accent/10 to-transparent rounded-full blur-3xl" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center">
+            <ListTodo className="w-5 h-5 text-accent-foreground" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground">No tasks available</p>
+          </div>
+        </div>
+        <div className="h-56 flex items-center justify-center text-muted-foreground">
           No tasks data available
         </div>
       </div>
@@ -73,57 +97,97 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
   }
 
   return (
-    <div className="glass-card rounded-2xl p-6 animate-slide-up">
-      <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
-      <div className="h-64">
+    <div className="glass-card rounded-2xl p-6 animate-slide-up relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-accent/10 to-transparent rounded-full blur-3xl" />
+      
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center">
+            <ListTodo className="w-5 h-5 text-accent-foreground" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground">{totalTasks} total tasks</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-56 relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={tasksByStatus}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={90}
-              paddingAngle={4}
+              innerRadius={55}
+              outerRadius={85}
+              paddingAngle={3}
               dataKey="value"
-              activeIndex={activeIndex !== null ? activeIndex : undefined}
-              activeShape={renderActiveShape}
               onClick={handleClick}
-              className="cursor-pointer"
+              className="cursor-pointer focus:outline-none"
+              stroke="hsl(var(--background))"
+              strokeWidth={2}
             >
               {tasksByStatus.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={entry.color}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  className="cursor-pointer transition-all duration-300 hover:opacity-80"
+                  style={{
+                    filter: activeIndex === index ? 'drop-shadow(0 0 8px ' + entry.color + ')' : 'none',
+                    transform: activeIndex === index ? 'scale(1.05)' : 'scale(1)',
+                    transformOrigin: 'center',
+                  }}
                 />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip content={<CustomTooltip />} />
           </PieChart>
         </ResponsiveContainer>
+        
+        {/* Center label */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-foreground">{totalTasks}</p>
+            <p className="text-xs text-muted-foreground">Total</p>
+          </div>
+        </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-3 mt-4">
-        {tasksByStatus.map((item) => (
-          <button
-            key={item.name}
-            onClick={() => {
-              if (selectedStatus === item.name) {
-                setSelectedStatus(null);
-                setActiveIndex(null);
-              } else {
-                setSelectedStatus(item.name);
-                setActiveIndex(tasksByStatus.findIndex(s => s.name === item.name));
-              }
-            }}
-            className={`flex items-center gap-2 px-2 py-1 rounded-md transition-all ${
-              selectedStatus === item.name ? 'bg-muted ring-2 ring-primary' : 'hover:bg-muted/50'
-            }`}
-          >
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-            <span className="text-xs text-muted-foreground">{item.name} ({item.value})</span>
-          </button>
-        ))}
+
+      {/* Legend with icons */}
+      <div className="grid grid-cols-2 gap-2 mt-4">
+        {tasksByStatus.map((item) => {
+          const Icon = statusIcons[item.name];
+          const percentage = totalTasks > 0 ? ((item.value / totalTasks) * 100).toFixed(0) : 0;
+          return (
+            <button
+              key={item.name}
+              onClick={() => {
+                if (selectedStatus === item.name) {
+                  setSelectedStatus(null);
+                  setActiveIndex(null);
+                } else {
+                  setSelectedStatus(item.name);
+                  setActiveIndex(tasksByStatus.findIndex(s => s.name === item.name));
+                }
+              }}
+              className={`flex items-center gap-2 p-2 rounded-xl transition-all ${
+                selectedStatus === item.name 
+                  ? 'bg-muted ring-2 ring-primary shadow-lg' 
+                  : 'hover:bg-muted/50'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${item.gradient} flex items-center justify-center shrink-0`}>
+                <Icon className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
+                <p className="text-xs text-muted-foreground">{item.value} ({percentage}%)</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filtered Details */}
