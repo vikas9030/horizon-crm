@@ -3,6 +3,7 @@ import { Lead } from '@/types';
 import { mockLeads } from '@/data/mockData';
 import LeadStatusChip from './LeadStatusChip';
 import LeadFormModal from './LeadFormModal';
+import ExcelImportExport from './ExcelImportExport';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -46,9 +47,10 @@ interface LeadListProps {
   canCreate?: boolean;
   canEdit?: boolean;
   canConvert?: boolean;
+  isManagerView?: boolean;
 }
 
-export default function LeadList({ canCreate = true, canEdit = true, canConvert = true }: LeadListProps) {
+export default function LeadList({ canCreate = true, canEdit = true, canConvert = true, isManagerView = false }: LeadListProps) {
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -108,6 +110,18 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
     return `${formatValue(min)} - ${formatValue(max)}`;
   };
 
+  const handleImportLeads = (importedLeads: Partial<Lead>[]) => {
+    const newLeads: Lead[] = importedLeads.map((leadData, index) => ({
+      ...leadData as Lead,
+      id: String(Date.now() + index),
+      notes: [],
+      createdBy: '3',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    setLeads(prev => [...newLeads, ...prev]);
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -137,12 +151,15 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
           </Select>
         </div>
 
-        {canCreate && (
-          <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Lead
-          </Button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          <ExcelImportExport onImport={handleImportLeads} />
+          {canCreate && (
+            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Lead
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -156,11 +173,12 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                   <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                 </div>
               </TableHead>
-              <TableHead className="font-semibold">Contact</TableHead>
-              <TableHead className="font-semibold">Requirement</TableHead>
-              <TableHead className="font-semibold">Budget</TableHead>
+              <TableHead className="font-semibold">Phone</TableHead>
+              {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
+              {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
+              {!isManagerView && <TableHead className="font-semibold">Budget</TableHead>}
               <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Follow-up</TableHead>
+              {!isManagerView && <TableHead className="font-semibold">Follow-up</TableHead>}
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
           </TableHeader>
@@ -174,43 +192,51 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                 <TableCell>
                   <div>
                     <p className="font-medium text-foreground">{lead.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{lead.source || 'Direct'}</p>
+                    {!isManagerView && <p className="text-xs text-muted-foreground capitalize">{lead.source || 'Direct'}</p>}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="w-3.5 h-3.5" />
-                      {lead.phone}
-                    </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="w-3.5 h-3.5" />
+                    {lead.phone}
+                  </div>
+                </TableCell>
+                {!isManagerView && (
+                  <TableCell>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="w-3.5 h-3.5" />
                       {lead.email}
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="text-sm capitalize">{lead.requirementType}</p>
-                    <p className="text-xs text-muted-foreground">{lead.bhkRequirement} BHK</p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
-                </TableCell>
+                  </TableCell>
+                )}
+                {!isManagerView && (
+                  <TableCell>
+                    <div>
+                      <p className="text-sm capitalize">{lead.requirementType}</p>
+                      <p className="text-xs text-muted-foreground">{lead.bhkRequirement} BHK</p>
+                    </div>
+                  </TableCell>
+                )}
+                {!isManagerView && (
+                  <TableCell>
+                    <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
+                  </TableCell>
+                )}
                 <TableCell>
                   <LeadStatusChip status={lead.status} />
                 </TableCell>
-                <TableCell>
-                  {lead.followUpDate ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(lead.followUpDate, 'MMM dd, yyyy')}
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">-</span>
-                  )}
-                </TableCell>
+                {!isManagerView && (
+                  <TableCell>
+                    {lead.followUpDate ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {format(lead.followUpDate, 'MMM dd, yyyy')}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

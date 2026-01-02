@@ -134,13 +134,12 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
                 className="input-field"
               />
             </div>
@@ -165,19 +164,18 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Address *</Label>
+            <Label htmlFor="address">Address</Label>
             <Input
               id="address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              required
               className="input-field"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Requirement Type *</Label>
+              <Label>Requirement Type</Label>
               <Select
                 value={formData.requirementType}
                 onValueChange={(value: RequirementType) => setFormData({ ...formData, requirementType: value })}
@@ -195,7 +193,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
             </div>
 
             <div className="space-y-2">
-              <Label>BHK Requirement *</Label>
+              <Label>BHK Requirement</Label>
               <Select
                 value={formData.bhkRequirement}
                 onValueChange={(value: '1' | '2' | '3' | '4' | '5+') => setFormData({ ...formData, bhkRequirement: value })}
@@ -234,25 +232,23 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="budgetMin">Minimum Budget ($) *</Label>
+              <Label htmlFor="budgetMin">Minimum Budget ($)</Label>
               <Input
                 id="budgetMin"
                 type="number"
                 value={formData.budgetMin}
                 onChange={(e) => setFormData({ ...formData, budgetMin: parseInt(e.target.value) || 0 })}
-                required
                 className="input-field"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="budgetMax">Maximum Budget ($) *</Label>
+              <Label htmlFor="budgetMax">Maximum Budget ($)</Label>
               <Input
                 id="budgetMax"
                 type="number"
                 value={formData.budgetMax}
                 onChange={(e) => setFormData({ ...formData, budgetMax: parseInt(e.target.value) || 0 })}
-                required
                 className="input-field"
               />
             </div>
