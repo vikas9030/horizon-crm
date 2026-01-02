@@ -1,15 +1,26 @@
-import { Bell, Search, Menu } from 'lucide-react';
+import { Bell, Search, Menu, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface TopBarProps {
   title: string;
   subtitle?: string;
+  showBackButton?: boolean;
 }
 
-export default function TopBar({ title, subtitle }: TopBarProps) {
+export default function TopBar({ title, subtitle, showBackButton = true }: TopBarProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine if we're on a dashboard (root page for each role)
+  const isDashboard = ['/', '/admin', '/manager', '/staff'].includes(location.pathname);
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   return (
     <header className="h-20 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-40">
@@ -17,6 +28,18 @@ export default function TopBar({ title, subtitle }: TopBarProps) {
         <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="w-5 h-5" />
         </Button>
+        
+        {/* Back Button - show on non-dashboard pages */}
+        {showBackButton && !isDashboard && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleBack}
+            className="hover:bg-muted"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
         
         <div>
           <h1 className="text-2xl font-bold text-foreground">{title}</h1>
