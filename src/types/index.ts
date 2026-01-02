@@ -47,6 +47,7 @@ export interface Lead {
   followUpDate?: Date;
   notes: LeadNote[];
   createdBy: string;
+  assignedProject?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +68,7 @@ export interface Task {
   notes: TaskNote[];
   attachments: string[];
   assignedTo: string;
+  assignedProject?: string;
   createdAt: Date;
   updatedAt: Date;
 }
