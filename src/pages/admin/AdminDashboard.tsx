@@ -1,6 +1,8 @@
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
+import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
+import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import { mockLeads, mockTasks, mockProjects, mockLeaves, mockActivities } from '@/data/mockData';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
@@ -118,6 +120,9 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* Tasks by Status Chart */}
+          <TaskStatusChart tasks={mockTasks} />
+
           {/* Projects by Status Chart */}
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4">Projects Overview</h3>
@@ -132,6 +137,11 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Reminders Widget */}
+          <RemindersWidget leads={mockLeads} tasks={mockTasks} />
 
           {/* Activity Feed */}
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
