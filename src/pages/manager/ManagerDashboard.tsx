@@ -2,6 +2,7 @@ import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
+import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import { mockLeads, mockTasks, mockLeaves, mockUsers, mockAnnouncements } from '@/data/mockData';
 import { Users, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
@@ -64,7 +65,7 @@ export default function ManagerDashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Staff Performance Chart */}
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4">Staff Performance</h3>
@@ -81,7 +82,10 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
-          {/* Tasks by Status Chart */}
+          {/* Leads by Status Chart - Interactive */}
+          <LeadStatusChart leads={mockLeads} title="Team Leads by Status" />
+
+          {/* Tasks by Status Chart - Interactive */}
           <TaskStatusChart tasks={mockTasks} title="Team Tasks by Status" />
         </div>
 
