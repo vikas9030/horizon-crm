@@ -32,9 +32,10 @@ import { toast } from 'sonner';
 
 interface TaskListProps {
   canEdit?: boolean;
+  isManagerView?: boolean;
 }
 
-export default function TaskList({ canEdit = true }: TaskListProps) {
+export default function TaskList({ canEdit = true, isManagerView = false }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -90,11 +91,12 @@ export default function TaskList({ canEdit = true }: TaskListProps) {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="font-semibold">Lead Details</TableHead>
-              <TableHead className="font-semibold">Requirement</TableHead>
+              <TableHead className="font-semibold">Lead Name</TableHead>
+              {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
+              {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Assigned To</TableHead>
-              <TableHead className="font-semibold">Next Action</TableHead>
+              {!isManagerView && <TableHead className="font-semibold">Next Action</TableHead>}
               <TableHead className="font-semibold">Created</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
@@ -107,18 +109,24 @@ export default function TaskList({ canEdit = true }: TaskListProps) {
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 <TableCell>
-                  <div>
-                    <p className="font-medium text-foreground">{task.lead.name}</p>
-                    <p className="text-sm text-muted-foreground">{task.lead.email}</p>
-                    <p className="text-sm text-muted-foreground">{task.lead.phone}</p>
-                  </div>
+                  <p className="font-medium text-foreground">{task.lead.name}</p>
                 </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="text-sm capitalize">{task.lead.requirementType}</p>
-                    <p className="text-xs text-muted-foreground">{task.lead.bhkRequirement} BHK</p>
-                  </div>
-                </TableCell>
+                {!isManagerView && (
+                  <TableCell>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{task.lead.email}</p>
+                      <p className="text-sm text-muted-foreground">{task.lead.phone}</p>
+                    </div>
+                  </TableCell>
+                )}
+                {!isManagerView && (
+                  <TableCell>
+                    <div>
+                      <p className="text-sm capitalize">{task.lead.requirementType}</p>
+                      <p className="text-xs text-muted-foreground">{task.lead.bhkRequirement} BHK</p>
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell>
                   {canEdit ? (
                     <Select
@@ -141,18 +149,20 @@ export default function TaskList({ canEdit = true }: TaskListProps) {
                   )}
                 </TableCell>
                 <TableCell>
-                  <StaffProfileChip userId={task.assignedTo} />
+                  <StaffProfileChip userId={task.assignedTo} showDetails={!isManagerView} />
                 </TableCell>
-                <TableCell>
-                  {task.nextActionDate ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(task.nextActionDate, 'MMM dd, yyyy')}
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">-</span>
-                  )}
-                </TableCell>
+                {!isManagerView && (
+                  <TableCell>
+                    {task.nextActionDate ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {format(task.nextActionDate, 'MMM dd, yyyy')}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>
                   <p className="text-sm text-muted-foreground">
                     {format(task.createdAt, 'MMM dd, yyyy')}
