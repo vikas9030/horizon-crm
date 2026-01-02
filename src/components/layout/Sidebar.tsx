@@ -17,18 +17,44 @@ import {
   ChevronLeft,
   ChevronRight,
   Megaphone,
+  Bell,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { mockLeads, mockTasks } from '@/data/mockData';
+import { isAfter, isBefore, addDays, isToday } from 'date-fns';
 
 interface NavItem {
   label: string;
   icon: React.ElementType;
   href: string;
   roles: ('admin' | 'manager' | 'staff')[];
+  getBadge?: () => number;
 }
 
+const getRemindersCount = () => {
+  const today = new Date();
+  const nextWeek = addDays(today, 7);
+
+  const leadReminders = mockLeads.filter(l => 
+    l.status === 'reminder' && 
+    l.followUpDate && 
+    ((isAfter(l.followUpDate, today) && isBefore(l.followUpDate, nextWeek)) ||
+     (isBefore(l.followUpDate, today) && !isToday(l.followUpDate)))
+  ).length;
+
+  const taskReminders = mockTasks.filter(t => 
+    t.nextActionDate && 
+    ((isAfter(t.nextActionDate, today) && isBefore(t.nextActionDate, nextWeek)) ||
+     (isBefore(t.nextActionDate, today) && !isToday(t.nextActionDate))) &&
+    t.status !== 'completed' && 
+    t.status !== 'rejected'
+  ).length;
+
+  return leadReminders + taskReminders;
+};
+
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'staff'] },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'staff'], getBadge: getRemindersCount },
   { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
   { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin'] },
   { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'staff'] },
@@ -43,6 +69,14 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+
+  useEffect(() => {
+    const count = getRemindersCount();
+    if (count > 0) {
+      setHasNewNotifications(true);
+    }
+  }, []);
 
   if (!user) return null;
 
@@ -75,18 +109,29 @@ export default function Sidebar() {
         {filteredNavItems.map((item) => {
           const isActive = location.pathname === `${basePath}${item.href}` || 
             (item.href === '' && location.pathname === basePath);
+          const badge = item.getBadge?.();
           
           return (
             <Link
               key={item.label}
               to={`${basePath}${item.href}`}
               className={cn(
-                "nav-link",
+                "nav-link relative",
                 isActive && "nav-link-active",
                 collapsed && "justify-center px-3"
               )}
             >
-              <item.icon className="w-5 h-5 shrink-0" />
+              <div className="relative">
+                <item.icon className="w-5 h-5 shrink-0" />
+                {badge && badge > 0 && (
+                  <span className={cn(
+                    "absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse",
+                    hasNewNotifications && "ring-2 ring-destructive/30"
+                  )}>
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </div>
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );
