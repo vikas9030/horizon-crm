@@ -5,6 +5,7 @@ import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
+import CalendarView from '@/components/dashboard/CalendarView';
 import { mockLeads, mockTasks, mockProjects, mockLeaves, mockActivities } from '@/data/mockData';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 
@@ -98,9 +99,12 @@ export default function AdminDashboard() {
           {/* Activity Feed */}
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
             <ActivityFeed activities={mockActivities} />
-          </div>
         </div>
+
+        {/* Calendar View */}
+        <CalendarView leads={mockLeads} tasks={mockTasks} title="All Events Calendar" />
       </div>
+    </div>
     </div>
   );
 }

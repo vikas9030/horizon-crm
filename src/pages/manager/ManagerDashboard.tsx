@@ -4,6 +4,7 @@ import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
+import CalendarView from '@/components/dashboard/CalendarView';
 import { mockLeads, mockTasks, mockLeaves, mockUsers, mockAnnouncements } from '@/data/mockData';
 import { Users, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -134,6 +135,9 @@ export default function ManagerDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Calendar View */}
+        <CalendarView leads={mockLeads} tasks={mockTasks} title="Team Calendar" />
       </div>
     </div>
   );
