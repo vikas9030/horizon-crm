@@ -16,6 +16,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Megaphone,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -29,6 +30,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'staff'] },
   { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
+  { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin'] },
   { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'staff'] },
   { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'staff'] },
   { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'staff'] },

@@ -1,4 +1,4 @@
-import { User, Lead, Task, Project, Leave, ActivityLog } from '@/types';
+import { User, Lead, Task, Project, Leave, ActivityLog, Announcement } from '@/types';
 
 export const mockUsers: User[] = [
   {
@@ -343,3 +343,37 @@ export const demoCredentials = {
   manager: { email: 'manager@realestate.com', password: 'manager123' },
   staff: { email: 'staff@realestate.com', password: 'staff123' },
 };
+
+export const mockAnnouncements: Announcement[] = [
+  {
+    id: '1',
+    title: 'New Lead Management Policy',
+    message: 'All leads must be followed up within 24 hours of creation. Please ensure timely updates on lead statuses.',
+    priority: 'high',
+    targetRoles: ['manager', 'staff'],
+    createdBy: '1',
+    createdAt: new Date('2024-06-14T09:00:00'),
+    isActive: true,
+  },
+  {
+    id: '2',
+    title: 'Office Closed for Holiday',
+    message: 'The office will be closed on June 25th for the public holiday. Please plan your tasks accordingly.',
+    priority: 'medium',
+    targetRoles: ['manager', 'staff'],
+    createdBy: '1',
+    createdAt: new Date('2024-06-12T14:30:00'),
+    expiresAt: new Date('2024-06-26'),
+    isActive: true,
+  },
+  {
+    id: '3',
+    title: 'New Project Launch - Metro Heights',
+    message: 'We are excited to announce the launch of Metro Heights project. Training materials are available in the Projects section.',
+    priority: 'low',
+    targetRoles: ['staff'],
+    createdBy: '1',
+    createdAt: new Date('2024-06-10T11:00:00'),
+    isActive: true,
+  },
+];
