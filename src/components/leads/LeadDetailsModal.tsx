@@ -27,9 +27,10 @@ interface LeadDetailsModalProps {
   open: boolean;
   onClose: () => void;
   lead: Lead | null;
+  isManagerView?: boolean;
 }
 
-export default function LeadDetailsModal({ open, onClose, lead }: LeadDetailsModalProps) {
+export default function LeadDetailsModal({ open, onClose, lead, isManagerView = false }: LeadDetailsModalProps) {
   if (!lead) return null;
 
   const formatBudget = (min: number, max: number) => {
@@ -86,65 +87,73 @@ export default function LeadDetailsModal({ open, onClose, lead }: LeadDetailsMod
                     <p className="font-medium">{lead.phone}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <Mail className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium">{lead.email || '-'}</p>
+                {!isManagerView && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <Mail className="w-4 h-4 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="font-medium">{lead.email || '-'}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 sm:col-span-2">
-                  <MapPin className="w-4 h-4 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Address</p>
-                    <p className="font-medium">{lead.address || '-'}</p>
+                )}
+                {!isManagerView && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 sm:col-span-2">
+                    <MapPin className="w-4 h-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Address</p>
+                      <p className="font-medium">{lead.address || '-'}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
-            <Separator />
+            {!isManagerView && (
+              <>
+                <Separator />
 
-            {/* Property Requirements */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Property Requirements
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <Home className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Type</p>
-                    <p className="font-medium capitalize">{lead.requirementType || '-'}</p>
+                {/* Property Requirements */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Property Requirements
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <Home className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Type</p>
+                        <p className="font-medium capitalize">{lead.requirementType || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <Home className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">BHK</p>
+                        <p className="font-medium">{lead.bhkRequirement ? `${lead.bhkRequirement} BHK` : '-'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 col-span-2">
+                      <IndianRupee className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Budget</p>
+                        <p className="font-medium">
+                          {lead.budgetMin && lead.budgetMax ? formatBudget(lead.budgetMin, lead.budgetMax) : '-'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
+                  {lead.preferredLocation && (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 mt-4">
+                      <MapPin className="w-4 h-4 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Preferred Location</p>
+                        <p className="font-medium">{lead.preferredLocation}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <Home className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">BHK</p>
-                    <p className="font-medium">{lead.bhkRequirement ? `${lead.bhkRequirement} BHK` : '-'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 col-span-2">
-                  <IndianRupee className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Budget</p>
-                    <p className="font-medium">
-                      {lead.budgetMin && lead.budgetMax ? formatBudget(lead.budgetMin, lead.budgetMax) : '-'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {lead.preferredLocation && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 mt-4">
-                  <MapPin className="w-4 h-4 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Preferred Location</p>
-                    <p className="font-medium">{lead.preferredLocation}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+              </>
+            )}
 
             <Separator />
 
