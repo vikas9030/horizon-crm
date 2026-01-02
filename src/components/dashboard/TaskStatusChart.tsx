@@ -142,7 +142,12 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
                 />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip 
+              content={<CustomTooltip />} 
+              wrapperStyle={{ zIndex: 100 }}
+              position={{ x: 0, y: 0 }}
+              offset={20}
+            />
           </PieChart>
         </ResponsiveContainer>
         

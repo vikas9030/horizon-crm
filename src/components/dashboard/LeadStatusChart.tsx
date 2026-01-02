@@ -119,7 +119,12 @@ export default function LeadStatusChart({ leads, title = "Leads by Status" }: Le
                 />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip 
+              content={<CustomTooltip />} 
+              wrapperStyle={{ zIndex: 100 }}
+              position={{ x: 0, y: 0 }}
+              offset={20}
+            />
           </PieChart>
         </ResponsiveContainer>
         
