@@ -184,7 +184,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                   <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                 </div>
               </TableHead>
-              <TableHead className="font-semibold">Phone</TableHead>
+              {!isManagerView && <TableHead className="font-semibold">Phone</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Budget</TableHead>}
@@ -207,12 +207,14 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                     {!isManagerView && <p className="text-xs text-muted-foreground capitalize">{lead.source || 'Direct'}</p>}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-3.5 h-3.5" />
-                    {lead.phone}
-                  </div>
-                </TableCell>
+                {!isManagerView && (
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5" />
+                      {lead.phone}
+                    </div>
+                  </TableCell>
+                )}
                 {!isManagerView && (
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
