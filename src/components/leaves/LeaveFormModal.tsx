@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Leave } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -8,7 +9,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -20,47 +20,124 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Upload, FileText, X, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface LeaveFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (leaveData: Partial<Leave>) => void;
+  onSave: (leaveData: Partial<Leave> & { documentUrl?: string }) => void;
+  previousLeaveCount?: number;
 }
 
-export default function LeaveFormModal({ open, onClose, onSave }: LeaveFormModalProps) {
+export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCount = 0 }: LeaveFormModalProps) {
   const { user } = useAuth();
   const [leaveType, setLeaveType] = useState<string>('casual');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [reason, setReason] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Document is required for 2nd leave onwards (when previousLeaveCount >= 1)
+  const isDocumentRequired = previousLeaveCount >= 1;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Only PDF, JPG, and PNG files are allowed');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadDocument = async (): Promise<string | null> => {
+    if (!selectedFile || !user) return null;
+
+    const fileExt = selectedFile.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from('leave-documents')
+      .upload(fileName, selectedFile);
+
+    if (error) {
+      console.error('Upload error:', error);
+      throw new Error('Failed to upload document');
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from('leave-documents')
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!startDate || !endDate || !reason.trim()) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    onSave({
-      userId: user?.id || '',
-      userName: user?.name || '',
-      userRole: user?.role || 'staff',
-      type: leaveType as Leave['type'],
-      startDate,
-      endDate,
-      reason: reason.trim(),
-      status: 'pending',
-    });
+    if (isDocumentRequired && !selectedFile) {
+      toast.error('Document is required for your 2nd leave onwards');
+      return;
+    }
 
-    // Reset form
-    setLeaveType('casual');
-    setStartDate(undefined);
-    setEndDate(undefined);
-    setReason('');
-    onClose();
+    setUploading(true);
+    try {
+      let documentUrl: string | undefined;
+      
+      if (selectedFile) {
+        documentUrl = (await uploadDocument()) || undefined;
+      }
+
+      onSave({
+        userId: user?.id || '',
+        userName: user?.name || '',
+        userRole: user?.role || 'staff',
+        type: leaveType as Leave['type'],
+        startDate,
+        endDate,
+        reason: reason.trim(),
+        status: 'pending',
+        documentUrl,
+      });
+
+      // Reset form
+      setLeaveType('casual');
+      setStartDate(undefined);
+      setEndDate(undefined);
+      setReason('');
+      setSelectedFile(null);
+      onClose();
+    } catch (error) {
+      toast.error('Failed to submit leave request');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -108,6 +185,7 @@ export default function LeaveFormModal({ open, onClose, onSave }: LeaveFormModal
                     selected={startDate}
                     onSelect={setStartDate}
                     initialFocus
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -135,6 +213,7 @@ export default function LeaveFormModal({ open, onClose, onSave }: LeaveFormModal
                     onSelect={setEndDate}
                     disabled={(date) => startDate ? date < startDate : false}
                     initialFocus
+                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -152,12 +231,78 @@ export default function LeaveFormModal({ open, onClose, onSave }: LeaveFormModal
             />
           </div>
 
+          {/* Document Upload */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              Supporting Document
+              {isDocumentRequired ? (
+                <span className="text-destructive text-xs flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Required
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-xs">(Optional)</span>
+              )}
+            </Label>
+            
+            {isDocumentRequired && (
+              <p className="text-xs text-muted-foreground">
+                Document is required from your 2nd leave request onwards.
+              </p>
+            )}
+
+            {selectedFile ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                <FileText className="w-8 h-8 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(selectedFile.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={removeFile}
+                  className="shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              >
+                <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Click to upload document
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, JPG, PNG (max 10MB)
+                </p>
+              </div>
+            )}
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={uploading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!startDate || !endDate || !reason.trim()}>
-              Submit Request
+            <Button 
+              type="submit" 
+              disabled={!startDate || !endDate || !reason.trim() || (isDocumentRequired && !selectedFile) || uploading}
+            >
+              {uploading ? 'Submitting...' : 'Submit Request'}
             </Button>
           </div>
         </form>

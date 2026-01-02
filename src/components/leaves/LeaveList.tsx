@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Leave, LeaveStatus } from '@/types';
 import { mockLeaves } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,9 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, Calendar, Check, X } from 'lucide-react';
+import { Search, Plus, Calendar, Check, X, FileText, ExternalLink } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
+
+interface ExtendedLeave extends Leave {
+  documentUrl?: string;
+}
 
 interface LeaveListProps {
   canApprove?: boolean;
@@ -33,25 +37,51 @@ interface LeaveListProps {
 
 export default function LeaveList({ canApprove = false, canCreate = false, showOnlyPending = false }: LeaveListProps) {
   const { user } = useAuth();
-  const [leaves, setLeaves] = useState<Leave[]>(mockLeaves);
+  const [leaves, setLeaves] = useState<ExtendedLeave[]>(mockLeaves as ExtendedLeave[]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(showOnlyPending ? 'pending' : 'all');
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  // Count previous leaves for current user (to determine if document is required)
+  const userPreviousLeaveCount = useMemo(() => {
+    if (!user) return 0;
+    return leaves.filter(l => l.userId === user.id || l.userId === '3').length; // '3' is demo staff
+  }, [leaves, user]);
 
   const filteredLeaves = leaves.filter(leave => {
     const matchesSearch = leave.userName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || leave.status === statusFilter;
     
-    // Admin can see all, Manager can see staff leaves, Staff can see their own
+    // Admin can see all, Manager can see staff leaves + own, Staff can see their own
     let hasAccess = true;
     if (user?.role === 'manager') {
-      hasAccess = leave.userRole === 'staff';
+      hasAccess = leave.userRole === 'staff' || leave.userId === user.id;
     } else if (user?.role === 'staff') {
       hasAccess = leave.userId === user.id || leave.userId === '3'; // '3' is the demo staff ID
     }
     
     return matchesSearch && matchesStatus && hasAccess;
   });
+
+  // Check if current user can view a leave's document
+  const canViewDocument = (leave: ExtendedLeave): boolean => {
+    if (!leave.documentUrl) return false;
+    
+    // Admin can see all documents
+    if (user?.role === 'admin') return true;
+    
+    // Manager can see staff documents and their own
+    if (user?.role === 'manager') {
+      return leave.userRole === 'staff' || leave.userId === user.id;
+    }
+    
+    // Staff can only see their own documents
+    if (user?.role === 'staff') {
+      return leave.userId === user.id || leave.userId === '3';
+    }
+    
+    return false;
+  };
 
   const handleApprove = (leaveId: string) => {
     setLeaves(prev => prev.map(l => 
@@ -67,9 +97,9 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     toast.success('Leave request rejected');
   };
 
-  const handleCreateLeave = (leaveData: Partial<Leave>) => {
-    const newLeave: Leave = {
-      ...leaveData as Leave,
+  const handleCreateLeave = (leaveData: Partial<ExtendedLeave>) => {
+    const newLeave: ExtendedLeave = {
+      ...leaveData as ExtendedLeave,
       id: String(Date.now()),
       createdAt: new Date(),
     };
@@ -77,7 +107,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     toast.success('Leave request submitted successfully');
   };
 
-  const canApproveLeave = (leave: Leave) => {
+  const canApproveLeave = (leave: ExtendedLeave) => {
     if (!canApprove) return false;
     if (leave.status !== 'pending') return false;
     
@@ -98,6 +128,10 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
       other: 'Other',
     };
     return labels[type] || type;
+  };
+
+  const openDocument = (url: string) => {
+    window.open(url, '_blank');
   };
 
   return (
@@ -147,6 +181,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
               <TableHead className="font-semibold">Leave Type</TableHead>
               <TableHead className="font-semibold">Duration</TableHead>
               <TableHead className="font-semibold">Reason</TableHead>
+              <TableHead className="font-semibold">Document</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               {canApprove && <TableHead className="font-semibold w-32">Actions</TableHead>}
             </TableRow>
@@ -182,6 +217,22 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
                   <p className="text-sm text-muted-foreground line-clamp-2 max-w-xs">
                     {leave.reason}
                   </p>
+                </TableCell>
+                <TableCell>
+                  {leave.documentUrl && canViewDocument(leave) ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openDocument(leave.documentUrl!)}
+                      className="text-primary hover:text-primary"
+                    >
+                      <FileText className="w-4 h-4 mr-1" />
+                      View
+                      <ExternalLink className="w-3 h-3 ml-1" />
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <LeaveStatusChip status={leave.status} />
@@ -228,6 +279,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSave={handleCreateLeave}
+        previousLeaveCount={userPreviousLeaveCount}
       />
     </div>
   );
