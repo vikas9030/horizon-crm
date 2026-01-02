@@ -2,25 +2,13 @@ import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
+import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
+import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import { mockLeads, mockTasks, mockProjects, mockLeaves, mockActivities } from '@/data/mockData';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 export default function AdminDashboard() {
-  const leadsByStatus = [
-    { name: 'Interested', value: mockLeads.filter(l => l.status === 'interested').length, color: 'hsl(160, 70%, 40%)' },
-    { name: 'Pending', value: mockLeads.filter(l => l.status === 'pending').length, color: 'hsl(38, 95%, 55%)' },
-    { name: 'Reminder', value: mockLeads.filter(l => l.status === 'reminder').length, color: 'hsl(200, 80%, 50%)' },
-    { name: 'Not Interested', value: mockLeads.filter(l => l.status === 'not_interested').length, color: 'hsl(0, 75%, 55%)' },
-  ];
-
-  const projectsByStatus = [
-    { name: 'Ongoing', count: mockProjects.filter(p => p.status === 'ongoing').length },
-    { name: 'Upcoming', count: mockProjects.filter(p => p.status === 'upcoming').length },
-    { name: 'Completed', count: mockProjects.filter(p => p.status === 'completed').length },
-  ];
-
   const pendingLeaves = mockLeaves.filter(l => l.status === 'pending').length;
 
   return (
@@ -87,56 +75,14 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Leads by Status Chart */}
-          <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Leads by Status</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={leadsByStatus}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {leadsByStatus.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-wrap justify-center gap-4 mt-4">
-              {leadsByStatus.map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-muted-foreground">{item.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Leads by Status Chart - Interactive */}
+          <LeadStatusChart leads={mockLeads} />
 
-          {/* Tasks by Status Chart */}
+          {/* Tasks by Status Chart - Interactive */}
           <TaskStatusChart tasks={mockTasks} />
 
-          {/* Projects by Status Chart */}
-          <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Projects Overview</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={projectsByStatus} layout="vertical">
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="hsl(215, 80%, 35%)" radius={[0, 8, 8, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          {/* Projects by Status Chart - Interactive */}
+          <ProjectStatusChart projects={mockProjects} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,37 +1,35 @@
 import { useState } from 'react';
-import { Task, TaskStatus } from '@/types';
+import { Lead, LeadStatus } from '@/types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Sector } from 'recharts';
-import { X, Calendar, Phone } from 'lucide-react';
-import TaskStatusChip from '@/components/tasks/TaskStatusChip';
+import { X, Phone, Mail, Calendar } from 'lucide-react';
+import LeadStatusChip from '@/components/leads/LeadStatusChip';
 import { format } from 'date-fns';
 
-interface TaskStatusChartProps {
-  tasks: Task[];
+interface LeadStatusChartProps {
+  leads: Lead[];
   title?: string;
 }
 
-const statusMap: Record<string, TaskStatus> = {
-  'Visit': 'visit',
-  'Family Visit': 'family_visit',
+const statusMap: Record<string, LeadStatus> = {
+  'Interested': 'interested',
+  'Not Interested': 'not_interested',
   'Pending': 'pending',
-  'Completed': 'completed',
-  'Rejected': 'rejected',
+  'Reminder': 'reminder',
 };
 
-export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: TaskStatusChartProps) {
+export default function LeadStatusChart({ leads, title = "Leads by Status" }: LeadStatusChartProps) {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const tasksByStatus = [
-    { name: 'Visit', value: tasks.filter(t => t.status === 'visit').length, color: 'hsl(215, 80%, 50%)', status: 'visit' },
-    { name: 'Family Visit', value: tasks.filter(t => t.status === 'family_visit').length, color: 'hsl(280, 70%, 55%)', status: 'family_visit' },
-    { name: 'Pending', value: tasks.filter(t => t.status === 'pending').length, color: 'hsl(38, 95%, 55%)', status: 'pending' },
-    { name: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'hsl(160, 70%, 40%)', status: 'completed' },
-    { name: 'Rejected', value: tasks.filter(t => t.status === 'rejected').length, color: 'hsl(0, 75%, 55%)', status: 'rejected' },
+  const leadsByStatus = [
+    { name: 'Interested', value: leads.filter(l => l.status === 'interested').length, color: 'hsl(160, 70%, 40%)', status: 'interested' },
+    { name: 'Pending', value: leads.filter(l => l.status === 'pending').length, color: 'hsl(38, 95%, 55%)', status: 'pending' },
+    { name: 'Reminder', value: leads.filter(l => l.status === 'reminder').length, color: 'hsl(200, 80%, 50%)', status: 'reminder' },
+    { name: 'Not Interested', value: leads.filter(l => l.status === 'not_interested').length, color: 'hsl(0, 75%, 55%)', status: 'not_interested' },
   ].filter(item => item.value > 0);
 
-  const filteredTasks = selectedStatus 
-    ? tasks.filter(t => t.status === statusMap[selectedStatus])
+  const filteredLeads = selectedStatus 
+    ? leads.filter(l => l.status === statusMap[selectedStatus])
     : [];
 
   const handleClick = (data: any, index: number) => {
@@ -61,25 +59,14 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
     );
   };
 
-  if (tasksByStatus.length === 0) {
-    return (
-      <div className="glass-card rounded-2xl p-6 animate-slide-up">
-        <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
-        <div className="h-64 flex items-center justify-center text-muted-foreground">
-          No tasks data available
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="glass-card rounded-2xl p-6 animate-slide-up">
+    <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
       <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={tasksByStatus}
+              data={leadsByStatus}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -91,7 +78,7 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
               onClick={handleClick}
               className="cursor-pointer"
             >
-              {tasksByStatus.map((entry, index) => (
+              {leadsByStatus.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={entry.color}
@@ -103,8 +90,8 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex flex-wrap justify-center gap-3 mt-4">
-        {tasksByStatus.map((item) => (
+      <div className="flex flex-wrap justify-center gap-4 mt-4">
+        {leadsByStatus.map((item) => (
           <button
             key={item.name}
             onClick={() => {
@@ -113,7 +100,7 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
                 setActiveIndex(null);
               } else {
                 setSelectedStatus(item.name);
-                setActiveIndex(tasksByStatus.findIndex(s => s.name === item.name));
+                setActiveIndex(leadsByStatus.findIndex(s => s.name === item.name));
               }
             }}
             className={`flex items-center gap-2 px-2 py-1 rounded-md transition-all ${
@@ -127,11 +114,11 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
       </div>
 
       {/* Filtered Details */}
-      {selectedStatus && filteredTasks.length > 0 && (
+      {selectedStatus && filteredLeads.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border animate-fade-in">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium text-foreground">
-              {selectedStatus} Tasks ({filteredTasks.length})
+              {selectedStatus} Leads ({filteredLeads.length})
             </h4>
             <button
               onClick={() => { setSelectedStatus(null); setActiveIndex(null); }}
@@ -141,30 +128,30 @@ export default function TaskStatusChart({ tasks, title = "Tasks by Status" }: Ta
             </button>
           </div>
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {filteredTasks.map((task) => (
+            {filteredLeads.map((lead) => (
               <div
-                key={task.id}
+                key={lead.id}
                 className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
               >
-                <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                  {task.lead.name.charAt(0)}
-                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">{task.lead.name}</p>
+                  <p className="font-medium text-sm text-foreground truncate">{lead.name}</p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="capitalize">{task.lead.requirementType} • {task.lead.bhkRequirement} BHK</span>
                     <span className="flex items-center gap-1">
                       <Phone className="w-3 h-3" />
-                      {task.lead.phone}
+                      {lead.phone}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      {lead.email}
                     </span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <TaskStatusChip status={task.status} />
-                  {task.nextActionDate && (
+                  <LeadStatusChip status={lead.status} />
+                  {lead.followUpDate && (
                     <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {format(task.nextActionDate, 'MMM dd')}
+                      {format(lead.followUpDate, 'MMM dd')}
                     </p>
                   )}
                 </div>

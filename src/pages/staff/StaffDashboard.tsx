@@ -2,6 +2,7 @@ import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
+import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import { mockLeads, mockTasks, mockLeaves, mockAnnouncements } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,8 +68,11 @@ export default function StaffDashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Tasks by Status Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Leads by Status Chart - Interactive */}
+          <LeadStatusChart leads={myLeads} title="My Leads by Status" />
+
+          {/* Tasks by Status Chart - Interactive */}
           <TaskStatusChart tasks={myTasks} title="My Tasks by Status" />
 
           {/* Reminders Widget */}
