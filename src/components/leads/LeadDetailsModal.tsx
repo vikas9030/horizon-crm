@@ -81,13 +81,19 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
                 Contact Information
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <Phone className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="font-medium">{lead.phone}</p>
+                {!isManagerView ? (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <Phone className="w-4 h-4 text-primary" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="font-medium">{lead.phone}</p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm text-muted-foreground">Contact details are hidden for managers.</p>
+                  </div>
+                )}
                 {!isManagerView && (
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                     <Mail className="w-4 h-4 text-primary" />
