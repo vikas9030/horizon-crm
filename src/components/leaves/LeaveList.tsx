@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Leave, LeaveStatus } from '@/types';
-import { mockLeaves } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import LeaveStatusChip from './LeaveStatusChip';
 import LeaveFormModal from './LeaveFormModal';
 import { Button } from '@/components/ui/button';
@@ -21,12 +21,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, Calendar, Check, X, FileText, ExternalLink } from 'lucide-react';
+import { Search, Plus, Calendar, Check, X, FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
-interface ExtendedLeave extends Leave {
-  documentUrl?: string;
+interface LeaveRecord {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: string;
+  document_url: string | null;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface LeaveListProps {
@@ -37,77 +49,180 @@ interface LeaveListProps {
 
 export default function LeaveList({ canApprove = false, canCreate = false, showOnlyPending = false }: LeaveListProps) {
   const { user } = useAuth();
-  const [leaves, setLeaves] = useState<ExtendedLeave[]>(mockLeaves as ExtendedLeave[]);
+  const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(showOnlyPending ? 'pending' : 'all');
   const [isFormOpen, setIsFormOpen] = useState(false);
 
+  // Fetch leaves from Supabase
+  const fetchLeaves = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('leaves')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching leaves:', error);
+        toast.error('Failed to load leaves');
+        return;
+      }
+
+      setLeaves(data || []);
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
+      toast.error('Failed to load leaves');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [user]);
+
   // Count previous leaves for current user (to determine if document is required)
   const userPreviousLeaveCount = useMemo(() => {
     if (!user) return 0;
-    return leaves.filter(l => l.userId === user.id || l.userId === '3').length; // '3' is demo staff
+    return leaves.filter(l => l.user_id === user.id).length;
   }, [leaves, user]);
 
-  const filteredLeaves = leaves.filter(leave => {
-    const matchesSearch = leave.userName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || leave.status === statusFilter;
-    
-    // Admin can see all, Manager can see staff leaves + own, Staff can see their own
-    let hasAccess = true;
-    if (user?.role === 'manager') {
-      hasAccess = leave.userRole === 'staff' || leave.userId === user.id;
-    } else if (user?.role === 'staff') {
-      hasAccess = leave.userId === user.id || leave.userId === '3'; // '3' is the demo staff ID
-    }
-    
-    return matchesSearch && matchesStatus && hasAccess;
-  });
+  const filteredLeaves = useMemo(() => {
+    return leaves.filter(leave => {
+      const matchesSearch = leave.user_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || leave.status === statusFilter;
+      
+      // Role-based access filtering
+      let hasAccess = true;
+      if (user?.role === 'manager') {
+        hasAccess = leave.user_role === 'staff' || leave.user_id === user.id;
+      } else if (user?.role === 'staff') {
+        hasAccess = leave.user_id === user.id;
+      }
+      
+      return matchesSearch && matchesStatus && hasAccess;
+    });
+  }, [leaves, searchQuery, statusFilter, user]);
 
   // Check if current user can view a leave's document
-  const canViewDocument = (leave: ExtendedLeave): boolean => {
-    if (!leave.documentUrl) return false;
+  const canViewDocument = (leave: LeaveRecord): boolean => {
+    if (!leave.document_url) return false;
     
     // Admin can see all documents
     if (user?.role === 'admin') return true;
     
     // Manager can see staff documents and their own
     if (user?.role === 'manager') {
-      return leave.userRole === 'staff' || leave.userId === user.id;
+      return leave.user_role === 'staff' || leave.user_id === user.id;
     }
     
     // Staff can only see their own documents
     if (user?.role === 'staff') {
-      return leave.userId === user.id || leave.userId === '3';
+      return leave.user_id === user.id;
     }
     
     return false;
   };
 
-  const handleApprove = (leaveId: string) => {
-    setLeaves(prev => prev.map(l => 
-      l.id === leaveId ? { ...l, status: 'approved' as LeaveStatus, approvedBy: user?.id } : l
-    ));
-    toast.success('Leave request approved');
+  const handleApprove = async (leaveId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('leaves')
+        .update({ 
+          status: 'approved', 
+          approved_by: user.id 
+        })
+        .eq('id', leaveId);
+
+      if (error) {
+        console.error('Error approving leave:', error);
+        toast.error('Failed to approve leave');
+        return;
+      }
+
+      setLeaves(prev => prev.map(l => 
+        l.id === leaveId ? { ...l, status: 'approved', approved_by: user.id } : l
+      ));
+      toast.success('Leave request approved');
+    } catch (error) {
+      console.error('Error approving leave:', error);
+      toast.error('Failed to approve leave');
+    }
   };
 
-  const handleReject = (leaveId: string) => {
-    setLeaves(prev => prev.map(l => 
-      l.id === leaveId ? { ...l, status: 'rejected' as LeaveStatus, approvedBy: user?.id } : l
-    ));
-    toast.success('Leave request rejected');
+  const handleReject = async (leaveId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('leaves')
+        .update({ 
+          status: 'rejected', 
+          approved_by: user.id 
+        })
+        .eq('id', leaveId);
+
+      if (error) {
+        console.error('Error rejecting leave:', error);
+        toast.error('Failed to reject leave');
+        return;
+      }
+
+      setLeaves(prev => prev.map(l => 
+        l.id === leaveId ? { ...l, status: 'rejected', approved_by: user.id } : l
+      ));
+      toast.success('Leave request rejected');
+    } catch (error) {
+      console.error('Error rejecting leave:', error);
+      toast.error('Failed to reject leave');
+    }
   };
 
-  const handleCreateLeave = (leaveData: Partial<ExtendedLeave>) => {
-    const newLeave: ExtendedLeave = {
-      ...leaveData as ExtendedLeave,
-      id: String(Date.now()),
-      createdAt: new Date(),
-    };
-    setLeaves(prev => [newLeave, ...prev]);
-    toast.success('Leave request submitted successfully');
+  const handleCreateLeave = async (leaveData: Partial<Leave> & { documentUrl?: string }) => {
+    if (!user) return;
+    
+    try {
+      const insertData = {
+        user_id: user.id,
+        user_name: user.name,
+        user_role: user.role,
+        leave_type: leaveData.type || 'casual',
+        start_date: leaveData.startDate ? format(leaveData.startDate, 'yyyy-MM-dd') : '',
+        end_date: leaveData.endDate ? format(leaveData.endDate, 'yyyy-MM-dd') : '',
+        reason: leaveData.reason || '',
+        status: 'pending',
+        document_url: leaveData.documentUrl || null,
+      };
+
+      const { data, error } = await supabase
+        .from('leaves')
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating leave:', error);
+        toast.error('Failed to submit leave request');
+        return;
+      }
+
+      if (data) {
+        setLeaves(prev => [data, ...prev]);
+        toast.success('Leave request submitted successfully');
+      }
+    } catch (error) {
+      console.error('Error creating leave:', error);
+      toast.error('Failed to submit leave request');
+    }
   };
 
-  const canApproveLeave = (leave: ExtendedLeave) => {
+  const canApproveLeave = (leave: LeaveRecord) => {
     if (!canApprove) return false;
     if (leave.status !== 'pending') return false;
     
@@ -115,7 +230,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     if (user?.role === 'admin') return true;
     
     // Manager can only approve staff leaves
-    if (user?.role === 'manager' && leave.userRole === 'staff') return true;
+    if (user?.role === 'manager' && leave.user_role === 'staff') return true;
     
     return false;
   };
@@ -133,6 +248,14 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
   const openDocument = (url: string) => {
     window.open(url, '_blank');
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -172,6 +295,50 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         )}
       </div>
 
+      {/* Leave Stats */}
+      {canCreate && (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Leaves</p>
+            <p className="text-2xl font-bold text-foreground">{leaves.filter(l => l.user_id === user?.id).length}</p>
+          </div>
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending</p>
+            <p className="text-2xl font-bold text-warning">{leaves.filter(l => l.user_id === user?.id && l.status === 'pending').length}</p>
+          </div>
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Approved</p>
+            <p className="text-2xl font-bold text-success">{leaves.filter(l => l.user_id === user?.id && l.status === 'approved').length}</p>
+          </div>
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Rejected</p>
+            <p className="text-2xl font-bold text-destructive">{leaves.filter(l => l.user_id === user?.id && l.status === 'rejected').length}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Admin/Manager Stats */}
+      {canApprove && (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Requests</p>
+            <p className="text-2xl font-bold text-foreground">{filteredLeaves.length}</p>
+          </div>
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending</p>
+            <p className="text-2xl font-bold text-warning">{filteredLeaves.filter(l => l.status === 'pending').length}</p>
+          </div>
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Approved</p>
+            <p className="text-2xl font-bold text-success">{filteredLeaves.filter(l => l.status === 'approved').length}</p>
+          </div>
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Rejected</p>
+            <p className="text-2xl font-bold text-destructive">{filteredLeaves.filter(l => l.status === 'rejected').length}</p>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <Table>
@@ -195,20 +362,20 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
               >
                 <TableCell>
                   <div>
-                    <p className="font-medium text-foreground">{leave.userName}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{leave.userRole}</p>
+                    <p className="font-medium text-foreground">{leave.user_name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{leave.user_role}</p>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p className="text-sm">{getLeaveTypeLabel(leave.type)}</p>
+                  <p className="text-sm">{getLeaveTypeLabel(leave.leave_type)}</p>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                     <div>
-                      <p>{format(leave.startDate, 'MMM dd')} - {format(leave.endDate, 'MMM dd, yyyy')}</p>
+                      <p>{format(new Date(leave.start_date), 'MMM dd')} - {format(new Date(leave.end_date), 'MMM dd, yyyy')}</p>
                       <p className="text-xs text-muted-foreground">
-                        {differenceInDays(leave.endDate, leave.startDate) + 1} day(s)
+                        {differenceInDays(new Date(leave.end_date), new Date(leave.start_date)) + 1} day(s)
                       </p>
                     </div>
                   </div>
@@ -219,11 +386,11 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
                   </p>
                 </TableCell>
                 <TableCell>
-                  {leave.documentUrl && canViewDocument(leave) ? (
+                  {leave.document_url && canViewDocument(leave) ? (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => openDocument(leave.documentUrl!)}
+                      onClick={() => openDocument(leave.document_url!)}
                       className="text-primary hover:text-primary"
                     >
                       <FileText className="w-4 h-4 mr-1" />
@@ -235,7 +402,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
                   )}
                 </TableCell>
                 <TableCell>
-                  <LeaveStatusChip status={leave.status} />
+                  <LeaveStatusChip status={leave.status as LeaveStatus} />
                 </TableCell>
                 {canApprove && (
                   <TableCell>
