@@ -63,6 +63,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -76,6 +77,8 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
         lead.phone.includes(searchQuery);
       
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+      
+      const matchesProject = projectFilter === 'all' || lead.assignedProject === projectFilter;
       
       // Date filter
       let matchesDate = true;
@@ -94,9 +97,9 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
         hasAccess = lead.createdBy === userId || lead.createdBy === '3'; // '3' is demo staff
       }
       
-      return matchesSearch && matchesStatus && matchesDate && hasAccess;
+      return matchesSearch && matchesStatus && matchesProject && matchesDate && hasAccess;
     });
-  }, [leads, searchQuery, statusFilter, dateRange, isStaffView, userId]);
+  }, [leads, searchQuery, statusFilter, projectFilter, dateRange, isStaffView, userId]);
 
   const handleSaveLead = (leadData: Partial<Lead>) => {
     if (editingLead) {
@@ -191,6 +194,20 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
               <SelectItem value="not_interested">Not Interested</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="reminder">Reminder</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All Projects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {mockProjects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

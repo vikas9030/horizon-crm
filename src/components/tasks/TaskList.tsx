@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Task, TaskStatus } from '@/types';
-import { mockTasks, mockProjects } from '@/data/mockData';
+import { Task, TaskStatus, Lead } from '@/types';
+import { mockTasks, mockProjects, mockLeads } from '@/data/mockData';
 import TaskStatusChip from './TaskStatusChip';
 import TaskFormModal from './TaskFormModal';
+import TaskExcelImportExport from './TaskExcelImportExport';
 import StaffProfileChip from '@/components/common/StaffProfileChip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Calendar, MoreHorizontal, Eye, Edit } from 'lucide-react';
+import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,18 +36,21 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface TaskListProps {
   canEdit?: boolean;
+  canCreate?: boolean;
   isManagerView?: boolean;
   isStaffView?: boolean;
   userId?: string;
 }
 
-export default function TaskList({ canEdit = true, isManagerView = false, isStaffView = false, userId }: TaskListProps) {
+export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false, isStaffView = false, userId }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -55,6 +59,8 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
         task.lead.email.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+      
+      const matchesProject = projectFilter === 'all' || task.assignedProject === projectFilter;
       
       // Date filter
       let matchesDate = true;
@@ -73,9 +79,9 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
         hasAccess = task.assignedTo === userId || task.assignedTo === '3'; // '3' is demo staff
       }
       
-      return matchesSearch && matchesStatus && matchesDate && hasAccess;
+      return matchesSearch && matchesStatus && matchesProject && matchesDate && hasAccess;
     });
-  }, [tasks, searchQuery, statusFilter, dateRange, isStaffView, userId]);
+  }, [tasks, searchQuery, statusFilter, projectFilter, dateRange, isStaffView, userId]);
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     setTasks(prev => prev.map(t => 
@@ -95,9 +101,49 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
         t.id === editingTask.id ? { ...t, ...updatedTask } : t
       ));
       toast.success('Task updated successfully');
+    } else if (isCreating && updatedTask.lead) {
+      const newTask: Task = {
+        id: String(Date.now()),
+        leadId: updatedTask.lead.id,
+        lead: updatedTask.lead,
+        status: updatedTask.status || 'pending',
+        nextActionDate: updatedTask.nextActionDate,
+        notes: updatedTask.notes || [],
+        attachments: updatedTask.attachments || [],
+        assignedTo: userId || '3',
+        assignedProject: updatedTask.assignedProject,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setTasks(prev => [newTask, ...prev]);
+      toast.success('Task created successfully');
     }
     setIsFormOpen(false);
     setEditingTask(null);
+    setIsCreating(false);
+  };
+
+  const handleAddTask = () => {
+    setIsCreating(true);
+    setEditingTask(null);
+    setIsFormOpen(true);
+  };
+
+  const handleImportTasks = (importedTasks: Partial<Task>[]) => {
+    const newTasks: Task[] = importedTasks.map((taskData, index) => ({
+      id: String(Date.now() + index),
+      leadId: taskData.lead?.id || String(Date.now() + index),
+      lead: taskData.lead as Lead,
+      status: taskData.status || 'pending',
+      nextActionDate: taskData.nextActionDate,
+      notes: taskData.notes || [],
+      attachments: taskData.attachments || [],
+      assignedTo: userId || '3',
+      assignedProject: taskData.assignedProject,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    setTasks(prev => [...newTasks, ...prev]);
   };
 
   const getProjectName = (projectId?: string) => {
@@ -109,65 +155,91 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
-        <div className="relative flex-1 sm:max-w-xs min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 input-field"
-          />
-        </div>
-        
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="visit">Visit</SelectItem>
-            <SelectItem value="family_visit">Family Visit</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Date Range Filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="justify-start text-left font-normal min-w-[200px]">
-              <Calendar className="mr-2 h-4 w-4" />
-              {dateRange.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
-                  </>
-                ) : (
-                  format(dateRange.from, "MMM dd, yyyy")
-                )
-              ) : (
-                "Filter by date"
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarComponent
-              initialFocus
-              mode="range"
-              selected={{ from: dateRange.from, to: dateRange.to }}
-              onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-              numberOfMonths={2}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
+          <div className="relative flex-1 sm:max-w-xs min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 input-field"
             />
-          </PopoverContent>
-        </Popover>
+          </div>
+          
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="visit">Visit</SelectItem>
+              <SelectItem value="family_visit">Family Visit</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {dateRange.from && (
-          <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
-            Clear dates
-          </Button>
-        )}
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All Projects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {mockProjects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="justify-start text-left font-normal min-w-[200px]">
+                <Calendar className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM dd, yyyy")
+                  )
+                ) : (
+                  "Filter by date"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                initialFocus
+                mode="range"
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {dateRange.from && (
+            <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
+              Clear dates
+            </Button>
+          )}
+        </div>
+
+        <div className="flex gap-2 flex-wrap justify-end">
+          <TaskExcelImportExport onImport={handleImportTasks} />
+          {canCreate && (
+            <Button onClick={handleAddTask} className="btn-accent shrink-0">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Task
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -294,9 +366,12 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
         onClose={() => {
           setIsFormOpen(false);
           setEditingTask(null);
+          setIsCreating(false);
         }}
         onSave={handleSaveTask}
         task={editingTask}
+        isCreating={isCreating}
+        availableLeads={mockLeads}
       />
     </div>
   );
