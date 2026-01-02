@@ -142,12 +142,12 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Apply for Leave</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="leaveType">Leave Type</Label>
             <Select value={leaveType} onValueChange={setLeaveType}>
@@ -252,7 +252,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             )}
 
             {selectedFile ? (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border">
                 <FileText className="w-8 h-8 text-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{selectedFile.name}</p>
@@ -273,7 +273,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                className="border-2 border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 transition-colors"
               >
                 <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
@@ -294,7 +294,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-5">
             <Button type="button" variant="outline" onClick={onClose} disabled={uploading}>
               Cancel
             </Button>
