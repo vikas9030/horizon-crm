@@ -35,6 +35,9 @@ import StaffTasks from "@/pages/staff/StaffTasks";
 import StaffLeaves from "@/pages/staff/StaffLeaves";
 import StaffProjects from "@/pages/staff/StaffProjects";
 
+// Shared Pages
+import SettingsPage from "@/pages/settings/SettingsPage";
+
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +65,7 @@ const App = () => (
               <Route path="announcements" element={<AdminAnnouncements />} />
               <Route path="activity" element={<AdminActivity />} />
               <Route path="reports" element={<AdminReports />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* Manager Routes */}
@@ -72,6 +76,7 @@ const App = () => (
               <Route path="projects" element={<ManagerProjects />} />
               <Route path="leaves" element={<ManagerLeaves />} />
               <Route path="reports" element={<ManagerReports />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* Staff Routes */}
@@ -81,6 +86,7 @@ const App = () => (
               <Route path="tasks" element={<StaffTasks />} />
               <Route path="projects" element={<StaffProjects />} />
               <Route path="leaves" element={<StaffLeaves />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* Catch-all */}
