@@ -5,13 +5,13 @@ import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
+import LeaveStatsWidget from '@/components/dashboard/LeaveStatsWidget';
 import { mockLeads, mockTasks, mockLeaves, mockAnnouncements } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { ClipboardList, CheckSquare, CalendarOff, Bell, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import LeadStatusChip from '@/components/leads/LeadStatusChip';
 import TaskStatusChip from '@/components/tasks/TaskStatusChip';
-
 export default function StaffDashboard() {
   const { user } = useAuth();
   
@@ -87,7 +87,7 @@ export default function StaffDashboard() {
         {/* Calendar View */}
         <CalendarView leads={myLeads} tasks={myTasks} title="My Calendar" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Tasks */}
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -152,6 +152,9 @@ export default function StaffDashboard() {
               ))}
             </div>
           </div>
+
+          {/* Leave Stats Widget */}
+          <LeaveStatsWidget />
         </div>
       </div>
     </div>
