@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Lead } from '@/types';
-import { mockLeads } from '@/data/mockData';
+import { mockLeads, mockProjects } from '@/data/mockData';
 import LeadStatusChip from './LeadStatusChip';
 import LeadFormModal from './LeadFormModal';
 import LeadDetailsModal from './LeadDetailsModal';
@@ -141,6 +141,12 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
     return `${formatValue(min)} - ${formatValue(max)}`;
   };
 
+  const getProjectName = (projectId?: string) => {
+    if (!projectId) return '-';
+    const project = mockProjects.find(p => p.id === projectId);
+    return project ? project.name : '-';
+  };
+
   const handleStatusChange = (leadId: string, newStatus: Lead['status']) => {
     setLeads(prev => prev.map(l => 
       l.id === leadId ? { ...l, status: newStatus, updatedAt: new Date() } : l
@@ -250,6 +256,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
               {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Budget</TableHead>}
+              <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Created By</TableHead>
               {!isManagerView && <TableHead className="font-semibold">Follow-up</TableHead>}
@@ -298,6 +305,9 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                     <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
                   </TableCell>
                 )}
+                <TableCell>
+                  <p className="text-sm font-medium">{getProjectName(lead.assignedProject)}</p>
+                </TableCell>
                 <TableCell>
                   <Select 
                     value={lead.status} 
