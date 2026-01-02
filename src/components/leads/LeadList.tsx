@@ -5,6 +5,7 @@ import LeadStatusChip from './LeadStatusChip';
 import LeadFormModal from './LeadFormModal';
 import LeadDetailsModal from './LeadDetailsModal';
 import ExcelImportExport from './ExcelImportExport';
+import StaffProfileChip from '@/components/common/StaffProfileChip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -188,6 +189,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
               {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Budget</TableHead>}
               <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Created By</TableHead>
               {!isManagerView && <TableHead className="font-semibold">Follow-up</TableHead>}
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
@@ -247,6 +249,9 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                       <SelectItem value="reminder">Reminder</SelectItem>
                     </SelectContent>
                   </Select>
+                </TableCell>
+                <TableCell>
+                  <StaffProfileChip userId={lead.createdBy} showDetails={!isManagerView} />
                 </TableCell>
                 {!isManagerView && (
                   <TableCell>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Task, TaskStatus } from '@/types';
 import { mockTasks } from '@/data/mockData';
 import TaskStatusChip from './TaskStatusChip';
+import StaffProfileChip from '@/components/common/StaffProfileChip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -92,6 +93,7 @@ export default function TaskList({ canEdit = true }: TaskListProps) {
               <TableHead className="font-semibold">Lead Details</TableHead>
               <TableHead className="font-semibold">Requirement</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Assigned To</TableHead>
               <TableHead className="font-semibold">Next Action</TableHead>
               <TableHead className="font-semibold">Created</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
@@ -137,6 +139,9 @@ export default function TaskList({ canEdit = true }: TaskListProps) {
                   ) : (
                     <TaskStatusChip status={task.status} />
                   )}
+                </TableCell>
+                <TableCell>
+                  <StaffProfileChip userId={task.assignedTo} />
                 </TableCell>
                 <TableCell>
                   {task.nextActionDate ? (
