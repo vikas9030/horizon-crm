@@ -120,3 +120,15 @@ export interface ActivityLog {
   details: string;
   createdAt: Date;
 }
+
+export interface Announcement {
+  id: string;
+  title: string;
+  message: string;
+  priority: 'low' | 'medium' | 'high';
+  targetRoles: ('manager' | 'staff')[];
+  createdBy: string;
+  createdAt: Date;
+  expiresAt?: Date;
+  isActive: boolean;
+}

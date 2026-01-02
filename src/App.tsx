@@ -17,6 +17,7 @@ import AdminProjects from "@/pages/admin/AdminProjects";
 import AdminLeaves from "@/pages/admin/AdminLeaves";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminActivity from "@/pages/admin/AdminActivity";
+import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 
 // Manager Pages
 import ManagerDashboard from "@/pages/manager/ManagerDashboard";
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="projects" element={<AdminProjects />} />
               <Route path="leaves" element={<AdminLeaves />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="announcements" element={<AdminAnnouncements />} />
               <Route path="activity" element={<AdminActivity />} />
             </Route>
 

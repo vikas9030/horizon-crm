@@ -1,6 +1,7 @@
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
-import { mockLeads, mockTasks, mockLeaves } from '@/data/mockData';
+import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
+import { mockLeads, mockTasks, mockLeaves, mockAnnouncements } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { ClipboardList, CheckSquare, CalendarOff, Bell, Target, Clock } from 'lucide-react';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
@@ -30,6 +31,8 @@ export default function StaffDashboard() {
       <TopBar title="Staff Dashboard" subtitle={`Welcome back, ${user?.name}!`} />
       
       <div className="p-6 space-y-6">
+        {/* Announcements */}
+        <AnnouncementBanner announcements={mockAnnouncements} userRole="staff" />
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard

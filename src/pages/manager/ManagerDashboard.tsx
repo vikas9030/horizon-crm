@@ -1,6 +1,7 @@
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
-import { mockLeads, mockTasks, mockLeaves, mockUsers } from '@/data/mockData';
+import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
+import { mockLeads, mockTasks, mockLeaves, mockUsers, mockAnnouncements } from '@/data/mockData';
 import { Users, ClipboardList, CheckSquare, CalendarOff, TrendingUp, Target } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -19,6 +20,8 @@ export default function ManagerDashboard() {
       <TopBar title="Manager Dashboard" subtitle="Monitor your team's performance" />
       
       <div className="p-6 space-y-6">
+        {/* Announcements */}
+        <AnnouncementBanner announcements={mockAnnouncements} userRole="manager" />
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
