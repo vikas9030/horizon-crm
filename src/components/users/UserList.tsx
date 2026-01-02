@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User } from '@/types';
 import { mockUsers } from '@/data/mockData';
+import UserFormModal from './UserFormModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Edit, Key, UserX, Shield } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, Key, UserX, Shield, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,15 +28,31 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export default function UserList() {
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deleteUser, setDeleteUser] = useState<User | null>(null);
 
-  const filteredUsers = mockUsers.filter(user => {
+  const managers = users.filter(u => u.role === 'manager');
+
+  const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -45,13 +62,43 @@ export default function UserList() {
     return matchesSearch && matchesRole && user.role !== 'admin';
   });
 
+  const handleSaveUser = (userData: Partial<User>) => {
+    if (editingUser) {
+      setUsers(prev => prev.map(u => 
+        u.id === editingUser.id ? { ...u, ...userData } as User : u
+      ));
+      toast.success('User updated successfully');
+    } else {
+      const newUser: User = {
+        ...userData as User,
+        id: String(Date.now()),
+        createdAt: new Date(),
+      };
+      setUsers(prev => [newUser, ...prev]);
+      toast.success('User created successfully');
+    }
+    setIsFormOpen(false);
+    setEditingUser(null);
+  };
+
   const handleResetPassword = (user: User) => {
     toast.success(`Password reset link sent to ${user.email}`);
   };
 
   const handleToggleStatus = (user: User) => {
+    setUsers(prev => prev.map(u => 
+      u.id === user.id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } as User : u
+    ));
     const action = user.status === 'active' ? 'disabled' : 'enabled';
     toast.success(`${user.name}'s account has been ${action}`);
+  };
+
+  const handleDeleteUser = () => {
+    if (deleteUser) {
+      setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
+      toast.success('User deleted successfully');
+      setDeleteUser(null);
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -92,7 +139,7 @@ export default function UserList() {
           </Select>
         </div>
 
-        <Button className="btn-accent shrink-0">
+        <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add User
         </Button>
@@ -180,11 +227,11 @@ export default function UserList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setEditingUser(user); setIsFormOpen(true); }}>
                         <Edit className="w-4 h-4 mr-2" />
                         Edit User
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setEditingUser(user); setIsFormOpen(true); }}>
                         <Shield className="w-4 h-4 mr-2" />
                         Edit Permissions
                       </DropdownMenuItem>
@@ -194,11 +241,17 @@ export default function UserList() {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
-                        className="text-destructive focus:text-destructive"
                         onClick={() => handleToggleStatus(user)}
                       >
                         <UserX className="w-4 h-4 mr-2" />
                         {user.status === 'active' ? 'Disable Account' : 'Enable Account'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteUser(user)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete User
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -214,6 +267,31 @@ export default function UserList() {
           </div>
         )}
       </div>
+
+      <UserFormModal
+        open={isFormOpen}
+        onClose={() => { setIsFormOpen(false); setEditingUser(null); }}
+        onSave={handleSaveUser}
+        user={editingUser}
+        managers={managers}
+      />
+
+      <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {deleteUser?.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
