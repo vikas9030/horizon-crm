@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import LeadStatusChip from './LeadStatusChip';
+import StaffProfileChip from '@/components/common/StaffProfileChip';
 import { 
   User, 
   Phone, 
@@ -189,7 +190,17 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
               </div>
             </div>
 
-            {/* Description */}
+            <Separator />
+
+            {/* Created By */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Created By
+              </h3>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <StaffProfileChip userId={lead.createdBy} showDetails={!isManagerView} />
+              </div>
+            </div>
             {lead.description && (
               <>
                 <Separator />
