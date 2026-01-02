@@ -317,6 +317,7 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
         open={!!viewingLead}
         onClose={() => setViewingLead(null)}
         lead={viewingLead}
+        isManagerView={isManagerView}
       />
     </div>
   );
