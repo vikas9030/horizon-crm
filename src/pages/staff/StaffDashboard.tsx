@@ -4,6 +4,7 @@ import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
+import CalendarView from '@/components/dashboard/CalendarView';
 import { mockLeads, mockTasks, mockLeaves, mockAnnouncements } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { ClipboardList, CheckSquare, CalendarOff, Bell, Target } from 'lucide-react';
@@ -82,6 +83,9 @@ export default function StaffDashboard() {
           {/* Reminders Widget */}
           <RemindersWidget leads={myLeads} tasks={myTasks} />
         </div>
+
+        {/* Calendar View */}
+        <CalendarView leads={myLeads} tasks={myTasks} title="My Calendar" />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Tasks */}
