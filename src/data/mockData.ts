@@ -69,6 +69,14 @@ export const mockUsers: User[] = [
   },
 ];
 
+// Helper to get dynamic dates relative to today
+const today = new Date();
+const addDays = (days: number) => {
+  const date = new Date(today);
+  date.setDate(date.getDate() + days);
+  return date;
+};
+
 export const mockLeads: Lead[] = [
   {
     id: '1',
@@ -83,14 +91,15 @@ export const mockLeads: Lead[] = [
     description: 'Looking for a spacious 3BHK in downtown area',
     preferredLocation: 'Downtown',
     source: 'website',
-    status: 'interested',
+    status: 'reminder',
+    followUpDate: addDays(2),
     notes: [
-      { id: '1', content: 'Initial inquiry - very interested in Tower A', createdBy: '3', createdAt: new Date('2024-06-01') },
-      { id: '2', content: 'Called back - requested brochure', createdBy: '3', createdAt: new Date('2024-06-03') },
+      { id: '1', content: 'Initial inquiry - very interested in Tower A', createdBy: '3', createdAt: addDays(-5) },
+      { id: '2', content: 'Called back - requested brochure', createdBy: '3', createdAt: addDays(-3) },
     ],
     createdBy: '3',
-    createdAt: new Date('2024-06-01'),
-    updatedAt: new Date('2024-06-03'),
+    createdAt: addDays(-5),
+    updatedAt: addDays(-3),
   },
   {
     id: '2',
@@ -106,13 +115,13 @@ export const mockLeads: Lead[] = [
     preferredLocation: 'Suburbs',
     source: 'referral',
     status: 'reminder',
-    followUpDate: new Date('2024-06-20'),
+    followUpDate: addDays(4),
     notes: [
-      { id: '3', content: 'Referred by existing customer', createdBy: '3', createdAt: new Date('2024-06-05') },
+      { id: '3', content: 'Referred by existing customer', createdBy: '3', createdAt: addDays(-2) },
     ],
     createdBy: '3',
-    createdAt: new Date('2024-06-05'),
-    updatedAt: new Date('2024-06-05'),
+    createdAt: addDays(-2),
+    updatedAt: addDays(-2),
   },
   {
     id: '3',
@@ -126,11 +135,12 @@ export const mockLeads: Lead[] = [
     budgetMax: 450000,
     description: 'First-time buyer looking for starter home',
     source: 'walk_in',
-    status: 'pending',
+    status: 'reminder',
+    followUpDate: addDays(5),
     notes: [],
     createdBy: '4',
-    createdAt: new Date('2024-06-10'),
-    updatedAt: new Date('2024-06-10'),
+    createdAt: addDays(-1),
+    updatedAt: addDays(-1),
   },
   {
     id: '4',
@@ -146,11 +156,30 @@ export const mockLeads: Lead[] = [
     source: 'call',
     status: 'not_interested',
     notes: [
-      { id: '4', content: 'Price range too high for budget', createdBy: '4', createdAt: new Date('2024-06-08') },
+      { id: '4', content: 'Price range too high for budget', createdBy: '4', createdAt: addDays(-3) },
     ],
     createdBy: '4',
-    createdAt: new Date('2024-06-08'),
-    updatedAt: new Date('2024-06-08'),
+    createdAt: addDays(-3),
+    updatedAt: addDays(-3),
+  },
+  {
+    id: '5',
+    name: 'Michael Brown',
+    phone: '+1987654325',
+    email: 'michael@email.com',
+    address: '500 Client Plaza',
+    requirementType: 'apartment',
+    bhkRequirement: '2',
+    budgetMin: 400000,
+    budgetMax: 600000,
+    description: 'Looking for investment apartment near metro',
+    preferredLocation: 'Tech Corridor',
+    source: 'website',
+    status: 'interested',
+    notes: [],
+    createdBy: '3',
+    createdAt: addDays(-1),
+    updatedAt: addDays(-1),
   },
 ];
 
@@ -160,28 +189,42 @@ export const mockTasks: Task[] = [
     leadId: '1',
     lead: mockLeads[0],
     status: 'visit',
-    nextActionDate: new Date('2024-06-18'),
+    nextActionDate: addDays(3),
     notes: [
-      { id: '1', content: 'Scheduled site visit for Saturday', createdBy: '3', createdAt: new Date('2024-06-10') },
+      { id: '1', content: 'Scheduled site visit for Saturday', createdBy: '3', createdAt: addDays(-2) },
     ],
     attachments: [],
     assignedTo: '3',
-    createdAt: new Date('2024-06-10'),
-    updatedAt: new Date('2024-06-10'),
+    createdAt: addDays(-2),
+    updatedAt: addDays(-2),
   },
   {
     id: '2',
     leadId: '2',
     lead: mockLeads[1],
     status: 'family_visit',
-    nextActionDate: new Date('2024-06-22'),
+    nextActionDate: addDays(5),
     notes: [
-      { id: '2', content: 'First visit completed. Client wants to bring family.', createdBy: '3', createdAt: new Date('2024-06-12') },
+      { id: '2', content: 'First visit completed. Client wants to bring family.', createdBy: '3', createdAt: addDays(-1) },
     ],
     attachments: [],
     assignedTo: '3',
-    createdAt: new Date('2024-06-12'),
-    updatedAt: new Date('2024-06-12'),
+    createdAt: addDays(-1),
+    updatedAt: addDays(-1),
+  },
+  {
+    id: '3',
+    leadId: '5',
+    lead: mockLeads[4],
+    status: 'pending',
+    nextActionDate: addDays(2),
+    notes: [
+      { id: '3', content: 'Client very interested in Metro Heights project', createdBy: '3', createdAt: addDays(0) },
+    ],
+    attachments: [],
+    assignedTo: '3',
+    createdAt: addDays(0),
+    updatedAt: addDays(0),
   },
 ];
 
