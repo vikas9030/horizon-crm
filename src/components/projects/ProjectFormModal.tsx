@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Project, ProjectStatus } from '@/types';
 import {
   Dialog,
@@ -18,8 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Upload, Building, MapPin, DollarSign, Calendar } from 'lucide-react';
+import { X, Plus, Upload, Building, MapPin, DollarSign, Calendar, Image, Loader2, Link } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ProjectFormModalProps {
   open: boolean;
@@ -34,6 +36,9 @@ export default function ProjectFormModal({
   onSubmit,
   project,
 }: ProjectFormModalProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     name: project?.name || '',
     location: project?.location || '',
@@ -54,6 +59,8 @@ export default function ProjectFormModal({
   const [photos, setPhotos] = useState<string[]>(project?.photos || []);
   const [newPhoto, setNewPhoto] = useState('');
   const [coverImage, setCoverImage] = useState(project?.coverImage || '');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +117,103 @@ export default function ProjectFormModal({
       setPhotos([...photos, newPhoto.trim()]);
       if (!coverImage) setCoverImage(newPhoto.trim());
       setNewPhoto('');
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const uploadedUrls: string[] = [];
+      
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name} is not an image`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (max 10MB)`);
+          continue;
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `projects/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('project-images')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('project-images')
+          .getPublicUrl(filePath);
+
+        uploadedUrls.push(publicUrl);
+      }
+
+      if (uploadedUrls.length > 0) {
+        setPhotos(prev => [...prev, ...uploadedUrls]);
+        if (!coverImage && uploadedUrls[0]) {
+          setCoverImage(uploadedUrls[0]);
+        }
+        toast.success(`${uploadedUrls.length} image(s) uploaded successfully`);
+      }
+    } catch (error) {
+      console.error('Error uploading photos:', error);
+      toast.error('Failed to upload images');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size should be less than 10MB');
+      return;
+    }
+
+    setIsUploadingCover(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `cover-${Date.now()}.${fileExt}`;
+      const filePath = `projects/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('project-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('project-images')
+        .getPublicUrl(filePath);
+
+      setCoverImage(publicUrl);
+      if (!photos.includes(publicUrl)) {
+        setPhotos(prev => [...prev, publicUrl]);
+      }
+      toast.success('Cover image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading cover:', error);
+      toast.error('Failed to upload cover image');
+    } finally {
+      setIsUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = '';
     }
   };
 
@@ -343,18 +447,104 @@ export default function ProjectFormModal({
           {/* Photos */}
           <div className="space-y-3">
             <Label>Building Photos</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Paste image URL"
-                value={newPhoto}
-                onChange={(e) => setNewPhoto(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPhoto())}
-                className="input-field flex-1"
-              />
-              <Button type="button" variant="secondary" onClick={addPhoto}>
-                <Upload className="w-4 h-4" />
-              </Button>
-            </div>
+            <Tabs defaultValue="upload" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-3">
+                <TabsTrigger value="upload" className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload
+                </TabsTrigger>
+                <TabsTrigger value="url" className="flex items-center gap-2">
+                  <Link className="w-4 h-4" />
+                  URL
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="upload" className="space-y-3">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="flex-1"
+                  >
+                    {isUploadingPhoto ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="w-4 h-4 mr-2" />
+                        Select Images
+                      </>
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Upload multiple images (max 10MB each)
+                </p>
+              </TabsContent>
+              <TabsContent value="url" className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Paste image URL"
+                    value={newPhoto}
+                    onChange={(e) => setNewPhoto(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPhoto())}
+                    className="input-field flex-1"
+                  />
+                  <Button type="button" variant="secondary" onClick={addPhoto}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+            
+            {/* Cover Image Upload */}
+            {photos.length === 0 && (
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <div className="space-y-2">
+                  <Image className="w-8 h-8 mx-auto text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No images added yet</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={isUploadingCover}
+                  >
+                    {isUploadingCover ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Cover Image
+                      </>
+                    )}
+                  </Button>
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleCoverUpload}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Photo Grid */}
             <div className="grid grid-cols-3 gap-3">
               {photos.map((photo) => (
                 <div key={photo} className="relative group">
