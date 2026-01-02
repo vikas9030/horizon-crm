@@ -26,6 +26,7 @@ export default function AdminDashboard() {
             icon={ClipboardList}
             iconColor="gradient-primary"
             delay={0}
+            href="/admin/leads"
           />
           <StatCard
             title="Active Tasks"
@@ -35,6 +36,7 @@ export default function AdminDashboard() {
             icon={CheckSquare}
             iconColor="bg-info"
             delay={50}
+            href="/admin/tasks"
           />
           <StatCard
             title="Projects"
@@ -44,6 +46,7 @@ export default function AdminDashboard() {
             icon={Building}
             iconColor="gradient-accent"
             delay={100}
+            href="/admin/projects"
           />
           <StatCard
             title="Pending Leaves"
@@ -53,6 +56,7 @@ export default function AdminDashboard() {
             icon={CalendarOff}
             iconColor="bg-warning"
             delay={150}
+            href="/admin/leaves"
           />
           <StatCard
             title="Team Members"
@@ -62,6 +66,7 @@ export default function AdminDashboard() {
             icon={Users}
             iconColor="bg-primary"
             delay={200}
+            href="/admin/users"
           />
           <StatCard
             title="Conversion Rate"
@@ -71,6 +76,7 @@ export default function AdminDashboard() {
             icon={TrendingUp}
             iconColor="gradient-success"
             delay={250}
+            href="/admin/activity"
           />
         </div>
 

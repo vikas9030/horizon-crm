@@ -1,5 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface StatCardProps {
   title: string;
@@ -9,6 +10,7 @@ interface StatCardProps {
   icon: LucideIcon;
   iconColor?: string;
   delay?: number;
+  href?: string;
 }
 
 export default function StatCard({ 
@@ -18,12 +20,25 @@ export default function StatCard({
   changeType = 'neutral', 
   icon: Icon,
   iconColor = 'bg-primary',
-  delay = 0
+  delay = 0,
+  href
 }: StatCardProps) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (href) {
+      navigate(href);
+    }
+  };
+
   return (
     <div 
-      className="stat-card animate-slide-up"
+      className={cn(
+        "stat-card animate-slide-up",
+        href && "cursor-pointer hover:scale-[1.02] transition-transform"
+      )}
       style={{ animationDelay: `${delay}ms` }}
+      onClick={handleClick}
     >
       <div className="flex items-start justify-between">
         <div>

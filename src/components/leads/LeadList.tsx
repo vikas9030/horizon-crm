@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Lead } from '@/types';
 import { mockLeads } from '@/data/mockData';
 import LeadStatusChip from './LeadStatusChip';
@@ -42,8 +42,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface LeadListProps {
   canCreate?: boolean;
@@ -56,20 +58,34 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = 
-      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.phone.includes(searchQuery);
-    
-    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => {
+      const matchesSearch = 
+        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.phone.includes(searchQuery);
+      
+      const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+      
+      // Date filter
+      let matchesDate = true;
+      if (dateRange.from && dateRange.to) {
+        matchesDate = isWithinInterval(new Date(lead.createdAt), {
+          start: startOfDay(dateRange.from),
+          end: endOfDay(dateRange.to),
+        });
+      } else if (dateRange.from) {
+        matchesDate = new Date(lead.createdAt) >= startOfDay(dateRange.from);
+      }
+      
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [leads, searchQuery, statusFilter, dateRange]);
 
   const handleSaveLead = (leadData: Partial<Lead>) => {
     if (editingLead) {
@@ -137,8 +153,8 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-1 gap-4 w-full sm:w-auto">
-          <div className="relative flex-1 sm:max-w-xs">
+        <div className="flex flex-1 gap-4 w-full sm:w-auto flex-wrap">
+          <div className="relative flex-1 sm:max-w-xs min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search leads..."
@@ -160,6 +176,41 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
               <SelectItem value="reminder">Reminder</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="justify-start text-left font-normal min-w-[200px]">
+                <Calendar className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM dd, yyyy")
+                  )
+                ) : (
+                  "Filter by date"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                initialFocus
+                mode="range"
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {dateRange.from && (
+            <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
+              Clear dates
+            </Button>
+          )}
         </div>
 
         <div className="flex gap-2 flex-wrap">
