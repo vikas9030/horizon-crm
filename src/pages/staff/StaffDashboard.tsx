@@ -38,6 +38,7 @@ export default function StaffDashboard() {
             icon={ClipboardList}
             iconColor="gradient-primary"
             delay={0}
+            href="/staff/leads"
           />
           <StatCard
             title="Active Tasks"
@@ -47,6 +48,7 @@ export default function StaffDashboard() {
             icon={CheckSquare}
             iconColor="gradient-accent"
             delay={50}
+            href="/staff/tasks"
           />
           <StatCard
             title="Reminders"
@@ -56,6 +58,7 @@ export default function StaffDashboard() {
             icon={Bell}
             iconColor="bg-info"
             delay={100}
+            href="/staff/leads"
           />
           <StatCard
             title="Leave Status"
@@ -65,6 +68,7 @@ export default function StaffDashboard() {
             icon={CalendarOff}
             iconColor="bg-warning"
             delay={150}
+            href="/staff/leaves"
           />
         </div>
 

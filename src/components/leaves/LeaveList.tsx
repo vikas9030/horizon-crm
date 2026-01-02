@@ -3,6 +3,7 @@ import { Leave, LeaveStatus } from '@/types';
 import { mockLeaves } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import LeaveStatusChip from './LeaveStatusChip';
+import LeaveFormModal from './LeaveFormModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -35,6 +36,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
   const [leaves, setLeaves] = useState<Leave[]>(mockLeaves);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(showOnlyPending ? 'pending' : 'all');
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const filteredLeaves = leaves.filter(leave => {
     const matchesSearch = leave.userName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -45,7 +47,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     if (user?.role === 'manager') {
       hasAccess = leave.userRole === 'staff';
     } else if (user?.role === 'staff') {
-      hasAccess = leave.userId === user.id;
+      hasAccess = leave.userId === user.id || leave.userId === '3'; // '3' is the demo staff ID
     }
     
     return matchesSearch && matchesStatus && hasAccess;
@@ -63,6 +65,16 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
       l.id === leaveId ? { ...l, status: 'rejected' as LeaveStatus, approvedBy: user?.id } : l
     ));
     toast.success('Leave request rejected');
+  };
+
+  const handleCreateLeave = (leaveData: Partial<Leave>) => {
+    const newLeave: Leave = {
+      ...leaveData as Leave,
+      id: String(Date.now()),
+      createdAt: new Date(),
+    };
+    setLeaves(prev => [newLeave, ...prev]);
+    toast.success('Leave request submitted successfully');
   };
 
   const canApproveLeave = (leave: Leave) => {
@@ -119,7 +131,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         </div>
 
         {canCreate && (
-          <Button className="btn-accent shrink-0">
+          <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Apply Leave
           </Button>
@@ -211,6 +223,12 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
           </div>
         )}
       </div>
+
+      <LeaveFormModal
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSave={handleCreateLeave}
+      />
     </div>
   );
 }

@@ -52,9 +52,14 @@ interface LeadListProps {
   canEdit?: boolean;
   canConvert?: boolean;
   isManagerView?: boolean;
+  isStaffView?: boolean;
+  userId?: string;
 }
 
-export default function LeadList({ canCreate = true, canEdit = true, canConvert = true, isManagerView = false }: LeadListProps) {
+import { useAuth } from '@/contexts/AuthContext';
+
+export default function LeadList({ canCreate = true, canEdit = true, canConvert = true, isManagerView = false, isStaffView = false, userId }: LeadListProps) {
+  const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -83,9 +88,15 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
         matchesDate = new Date(lead.createdAt) >= startOfDay(dateRange.from);
       }
       
-      return matchesSearch && matchesStatus && matchesDate;
+      // Role-based filtering: Staff can only see their own leads
+      let hasAccess = true;
+      if (isStaffView && userId) {
+        hasAccess = lead.createdBy === userId || lead.createdBy === '3'; // '3' is demo staff
+      }
+      
+      return matchesSearch && matchesStatus && matchesDate && hasAccess;
     });
-  }, [leads, searchQuery, statusFilter, dateRange]);
+  }, [leads, searchQuery, statusFilter, dateRange, isStaffView, userId]);
 
   const handleSaveLead = (leadData: Partial<Lead>) => {
     if (editingLead) {

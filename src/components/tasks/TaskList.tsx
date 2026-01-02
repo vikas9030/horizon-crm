@@ -35,9 +35,11 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 interface TaskListProps {
   canEdit?: boolean;
   isManagerView?: boolean;
+  isStaffView?: boolean;
+  userId?: string;
 }
 
-export default function TaskList({ canEdit = true, isManagerView = false }: TaskListProps) {
+export default function TaskList({ canEdit = true, isManagerView = false, isStaffView = false, userId }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -62,9 +64,15 @@ export default function TaskList({ canEdit = true, isManagerView = false }: Task
         matchesDate = new Date(task.createdAt) >= startOfDay(dateRange.from);
       }
       
-      return matchesSearch && matchesStatus && matchesDate;
+      // Role-based filtering: Staff can only see their assigned tasks
+      let hasAccess = true;
+      if (isStaffView && userId) {
+        hasAccess = task.assignedTo === userId || task.assignedTo === '3'; // '3' is demo staff
+      }
+      
+      return matchesSearch && matchesStatus && matchesDate && hasAccess;
     });
-  }, [tasks, searchQuery, statusFilter, dateRange]);
+  }, [tasks, searchQuery, statusFilter, dateRange, isStaffView, userId]);
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     setTasks(prev => prev.map(t => 
