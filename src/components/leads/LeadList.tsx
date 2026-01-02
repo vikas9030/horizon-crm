@@ -103,11 +103,19 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
 
   const formatBudget = (min: number, max: number) => {
     const formatValue = (val: number) => {
-      if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
-      if (val >= 1000) return `$${(val / 1000).toFixed(0)}K`;
-      return `$${val}`;
+      if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`;
+      if (val >= 100000) return `₹${(val / 100000).toFixed(0)} L`;
+      if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`;
+      return `₹${val}`;
     };
     return `${formatValue(min)} - ${formatValue(max)}`;
+  };
+
+  const handleStatusChange = (leadId: string, newStatus: Lead['status']) => {
+    setLeads(prev => prev.map(l => 
+      l.id === leadId ? { ...l, status: newStatus, updatedAt: new Date() } : l
+    ));
+    toast.success('Lead status updated');
   };
 
   const handleImportLeads = (importedLeads: Partial<Lead>[]) => {
@@ -223,7 +231,20 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
                   </TableCell>
                 )}
                 <TableCell>
-                  <LeadStatusChip status={lead.status} />
+                  <Select 
+                    value={lead.status} 
+                    onValueChange={(value) => handleStatusChange(lead.id, value as Lead['status'])}
+                  >
+                    <SelectTrigger className="w-36 h-8">
+                      <LeadStatusChip status={lead.status} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="interested">Interested</SelectItem>
+                      <SelectItem value="not_interested">Not Interested</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="reminder">Reminder</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </TableCell>
                 {!isManagerView && (
                   <TableCell>
