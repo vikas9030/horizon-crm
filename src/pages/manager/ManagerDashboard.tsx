@@ -35,6 +35,7 @@ export default function ManagerDashboard() {
             icon={Users}
             iconColor="gradient-primary"
             delay={0}
+            href="/manager/projects"
           />
           <StatCard
             title="Total Leads"
@@ -44,6 +45,7 @@ export default function ManagerDashboard() {
             icon={ClipboardList}
             iconColor="bg-info"
             delay={50}
+            href="/manager/leads"
           />
           <StatCard
             title="Active Tasks"
@@ -53,6 +55,7 @@ export default function ManagerDashboard() {
             icon={CheckSquare}
             iconColor="gradient-accent"
             delay={100}
+            href="/manager/tasks"
           />
           <StatCard
             title="Pending Leaves"
@@ -62,6 +65,7 @@ export default function ManagerDashboard() {
             icon={CalendarOff}
             iconColor="bg-warning"
             delay={150}
+            href="/manager/leaves"
           />
         </div>
 
