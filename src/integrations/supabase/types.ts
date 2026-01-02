@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      leaves: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          document_url: string | null
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string
+          start_date: string
+          status: string
+          updated_at: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          document_url?: string | null
+          end_date: string
+          id?: string
+          leave_type: string
+          reason: string
+          start_date: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          document_url?: string | null
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+          user_role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
