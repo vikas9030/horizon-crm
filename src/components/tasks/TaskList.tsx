@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Task, TaskStatus } from '@/types';
-import { mockTasks } from '@/data/mockData';
+import { mockTasks, mockProjects } from '@/data/mockData';
 import TaskStatusChip from './TaskStatusChip';
+import TaskFormModal from './TaskFormModal';
 import StaffProfileChip from '@/components/common/StaffProfileChip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,8 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -79,6 +82,28 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
       t.id === taskId ? { ...t, status: newStatus, updatedAt: new Date() } : t
     ));
     toast.success('Task status updated');
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsFormOpen(true);
+  };
+
+  const handleSaveTask = (updatedTask: Partial<Task>) => {
+    if (editingTask) {
+      setTasks(prev => prev.map(t => 
+        t.id === editingTask.id ? { ...t, ...updatedTask } : t
+      ));
+      toast.success('Task updated successfully');
+    }
+    setIsFormOpen(false);
+    setEditingTask(null);
+  };
+
+  const getProjectName = (projectId?: string) => {
+    if (!projectId) return '-';
+    const project = mockProjects.find(p => p.id === projectId);
+    return project ? project.name : '-';
   };
 
   return (
@@ -153,6 +178,7 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
               <TableHead className="font-semibold">Lead Name</TableHead>
               {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
+              <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Assigned To</TableHead>
               {!isManagerView && <TableHead className="font-semibold">Next Action</TableHead>}
@@ -186,6 +212,9 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
                     </div>
                   </TableCell>
                 )}
+                <TableCell>
+                  <p className="text-sm font-medium">{getProjectName(task.assignedProject)}</p>
+                </TableCell>
                 <TableCell>
                   {canEdit ? (
                     <Select
@@ -240,7 +269,7 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
                         View Details
                       </DropdownMenuItem>
                       {canEdit && (
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Task
                         </DropdownMenuItem>
@@ -259,6 +288,16 @@ export default function TaskList({ canEdit = true, isManagerView = false, isStaf
           </div>
         )}
       </div>
+
+      <TaskFormModal
+        open={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingTask(null);
+        }}
+        onSave={handleSaveTask}
+        task={editingTask}
+      />
     </div>
   );
 }
