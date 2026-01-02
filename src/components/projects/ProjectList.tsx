@@ -19,10 +19,13 @@ interface ProjectListProps {
   canCreate?: boolean;
 }
 
+const locations = ['Vizag', 'Gajuwaka', 'Kakinada', 'Rajamundry', 'Vijayawada'];
+
 export default function ProjectList({ canCreate = false }: ProjectListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>(mockProjects);
@@ -33,8 +36,10 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
     
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     const matchesType = typeFilter === 'all' || project.type === typeFilter;
+    const matchesLocation = locationFilter === 'all' || 
+      project.location.toLowerCase().includes(locationFilter.toLowerCase());
     
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus && matchesType && matchesLocation;
   });
 
   const handleAddProject = (projectData: Omit<Project, 'id' | 'createdAt'>) => {
@@ -83,6 +88,18 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
               <SelectItem value="apartment">Apartment</SelectItem>
               <SelectItem value="villa">Villa</SelectItem>
               <SelectItem value="plots">Plots</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations.map((loc) => (
+                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
