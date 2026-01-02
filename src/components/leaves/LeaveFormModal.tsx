@@ -142,7 +142,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="w-[min(92vw,40rem)] sm:max-w-none p-5 sm:p-7">
         <DialogHeader>
           <DialogTitle>Apply for Leave</DialogTitle>
         </DialogHeader>
@@ -252,7 +252,7 @@ export default function LeaveFormModal({ open, onClose, onSave, previousLeaveCou
             )}
 
             {selectedFile ? (
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="w-full max-w-full overflow-hidden flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border">
                 <FileText className="w-8 h-8 text-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{selectedFile.name}</p>
