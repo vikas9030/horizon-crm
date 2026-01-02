@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Task, TaskStatus } from '@/types';
 import { mockTasks } from '@/data/mockData';
 import TaskStatusChip from './TaskStatusChip';
@@ -27,8 +27,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface TaskListProps {
   canEdit?: boolean;
@@ -39,16 +41,30 @@ export default function TaskList({ canEdit = true, isManagerView = false }: Task
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = 
-      task.lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.lead.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const matchesSearch = 
+        task.lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.lead.email.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+      
+      // Date filter
+      let matchesDate = true;
+      if (dateRange.from && dateRange.to) {
+        matchesDate = isWithinInterval(new Date(task.createdAt), {
+          start: startOfDay(dateRange.from),
+          end: endOfDay(dateRange.to),
+        });
+      } else if (dateRange.from) {
+        matchesDate = new Date(task.createdAt) >= startOfDay(dateRange.from);
+      }
+      
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [tasks, searchQuery, statusFilter, dateRange]);
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
     setTasks(prev => prev.map(t => 
@@ -60,8 +76,8 @@ export default function TaskList({ canEdit = true, isManagerView = false }: Task
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <div className="relative flex-1 sm:max-w-xs">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
+        <div className="relative flex-1 sm:max-w-xs min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search tasks..."
@@ -84,6 +100,41 @@ export default function TaskList({ canEdit = true, isManagerView = false }: Task
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Date Range Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="justify-start text-left font-normal min-w-[200px]">
+              <Calendar className="mr-2 h-4 w-4" />
+              {dateRange.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                  </>
+                ) : (
+                  format(dateRange.from, "MMM dd, yyyy")
+                )
+              ) : (
+                "Filter by date"
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarComponent
+              initialFocus
+              mode="range"
+              selected={{ from: dateRange.from, to: dateRange.to }}
+              onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {dateRange.from && (
+          <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
+            Clear dates
+          </Button>
+        )}
       </div>
 
       {/* Table */}
