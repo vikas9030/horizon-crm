@@ -14,7 +14,8 @@ export type LeadSource = 'call' | 'walk_in' | 'website' | 'referral';
 
 export interface User {
   id: string;
-  email: string;
+  userId: string; // Auto-generated login ID (e.g., "john_admin_001")
+  email?: string; // Optional email
   name: string;
   phone: string;
   address: string;
@@ -23,6 +24,7 @@ export interface User {
   permissions: Permission[];
   createdAt: Date;
   managerId?: string;
+  password?: string; // For demo purposes
 }
 
 export interface Permission {

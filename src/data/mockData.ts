@@ -1,14 +1,30 @@
 import { User, Lead, Task, Project, Leave, ActivityLog, Announcement } from '@/types';
 
+// Helper to generate user ID from name
+export const generateUserId = (name: string, existingIds: string[] = []): string => {
+  const baseId = name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  let counter = 1;
+  let newId = `${baseId}_${String(counter).padStart(3, '0')}`;
+  
+  while (existingIds.includes(newId)) {
+    counter++;
+    newId = `${baseId}_${String(counter).padStart(3, '0')}`;
+  }
+  
+  return newId;
+};
+
 export const mockUsers: User[] = [
   {
     id: '1',
+    userId: 'john_admin_001',
     email: 'admin@realestate.com',
     name: 'John Admin',
     phone: '+1234567890',
     address: '123 Admin Street',
     role: 'admin',
     status: 'active',
+    password: 'admin123',
     permissions: [
       { module: 'leads', actions: ['view', 'create', 'edit', 'delete'] },
       { module: 'tasks', actions: ['view', 'create', 'edit', 'delete'] },
@@ -21,12 +37,14 @@ export const mockUsers: User[] = [
   },
   {
     id: '2',
+    userId: 'sarah_manager_001',
     email: 'manager@realestate.com',
     name: 'Sarah Manager',
     phone: '+1234567891',
     address: '456 Manager Ave',
     role: 'manager',
     status: 'active',
+    password: 'manager123',
     permissions: [
       { module: 'leads', actions: ['view'] },
       { module: 'tasks', actions: ['view'] },
@@ -37,6 +55,7 @@ export const mockUsers: User[] = [
   },
   {
     id: '3',
+    userId: 'mike_staff_001',
     email: 'staff@realestate.com',
     name: 'Mike Staff',
     phone: '+1234567892',
@@ -44,6 +63,7 @@ export const mockUsers: User[] = [
     role: 'staff',
     status: 'active',
     managerId: '2',
+    password: 'staff123',
     permissions: [
       { module: 'leads', actions: ['view', 'create', 'edit'] },
       { module: 'tasks', actions: ['view', 'create', 'edit'] },
@@ -53,6 +73,7 @@ export const mockUsers: User[] = [
   },
   {
     id: '4',
+    userId: 'emma_wilson_001',
     email: 'staff2@realestate.com',
     name: 'Emma Wilson',
     phone: '+1234567893',
@@ -60,6 +81,7 @@ export const mockUsers: User[] = [
     role: 'staff',
     status: 'active',
     managerId: '2',
+    password: 'staff123',
     permissions: [
       { module: 'leads', actions: ['view', 'create', 'edit'] },
       { module: 'tasks', actions: ['view', 'create', 'edit'] },
@@ -390,9 +412,9 @@ export const mockActivities: ActivityLog[] = [
 ];
 
 export const demoCredentials = {
-  admin: { email: 'admin@realestate.com', password: 'admin123' },
-  manager: { email: 'manager@realestate.com', password: 'manager123' },
-  staff: { email: 'staff@realestate.com', password: 'staff123' },
+  admin: { userId: 'john_admin_001', password: 'admin123' },
+  manager: { userId: 'sarah_manager_001', password: 'manager123' },
+  staff: { userId: 'mike_staff_001', password: 'staff123' },
 };
 
 export const mockAnnouncements: Announcement[] = [

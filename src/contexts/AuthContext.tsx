@@ -5,7 +5,7 @@ import { mockUsers, demoCredentials } from '@/data/mockData';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   hasPermission: (module: string, action: string) => boolean;
 }
@@ -15,22 +15,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Check credentials
-    const validCredential = Object.values(demoCredentials).find(
-      cred => cred.email === email && cred.password === password
-    );
-
-    if (!validCredential) {
-      return { success: false, error: 'Invalid email or password' };
+    // Check credentials by userId
+    const foundUser = mockUsers.find(u => u.userId === userId);
+    
+    if (!foundUser) {
+      return { success: false, error: 'User ID not found' };
     }
 
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (!foundUser) {
-      return { success: false, error: 'User not found' };
+    if (foundUser.password !== password) {
+      return { success: false, error: 'Invalid password' };
     }
 
     if (foundUser.status !== 'active') {
