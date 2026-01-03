@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { User, UserRole, Permission } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,17 +26,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { generateUserId } from '@/data/mockData';
+import { Badge } from '@/components/ui/badge';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address').max(255),
+  email: z.string().email('Invalid email address').max(255).optional().or(z.literal('')),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
   role: z.enum(['manager', 'staff'] as const),
   status: z.enum(['active', 'inactive'] as const),
   managerId: z.string().optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -47,6 +49,7 @@ interface UserFormModalProps {
   onSave: (userData: Partial<User>) => void;
   user?: User | null;
   managers?: User[];
+  existingUserIds?: string[];
 }
 
 const moduleOptions = [
@@ -59,7 +62,9 @@ const moduleOptions = [
 
 const actionOptions = ['view', 'create', 'edit', 'delete', 'approve'] as const;
 
-export default function UserFormModal({ open, onClose, onSave, user, managers = [] }: UserFormModalProps) {
+export default function UserFormModal({ open, onClose, onSave, user, managers = [], existingUserIds = [] }: UserFormModalProps) {
+  const [generatedUserId, setGeneratedUserId] = useState<string>('');
+  
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -70,23 +75,38 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
       role: 'staff',
       status: 'active',
       managerId: '',
+      password: '',
     },
   });
 
   const selectedRole = form.watch('role');
+  const nameValue = form.watch('name');
+
+  // Auto-generate userId when name changes (only for new users)
+  useEffect(() => {
+    if (!user && nameValue && nameValue.length >= 2) {
+      const newUserId = generateUserId(nameValue, existingUserIds);
+      setGeneratedUserId(newUserId);
+    } else if (!user) {
+      setGeneratedUserId('');
+    }
+  }, [nameValue, user, existingUserIds]);
 
   useEffect(() => {
     if (user) {
+      setGeneratedUserId(user.userId);
       form.reset({
         name: user.name,
-        email: user.email,
+        email: user.email || '',
         phone: user.phone,
         address: user.address,
         role: user.role as 'manager' | 'staff',
         status: user.status,
         managerId: user.managerId || '',
+        password: '',
       });
     } else {
+      setGeneratedUserId('');
       form.reset({
         name: '',
         email: '',
@@ -95,6 +115,7 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
         role: 'staff',
         status: 'active',
         managerId: '',
+        password: '',
       });
     }
   }, [user, form, open]);
@@ -119,7 +140,9 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
     const permissions = getDefaultPermissions(data.role);
     onSave({
       ...data,
+      userId: user ? user.userId : generatedUserId,
       permissions,
+      password: data.password || (user ? user.password : 'password123'),
     });
     onClose();
   };
@@ -148,12 +171,33 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
                 )}
               />
 
+              {/* Auto-generated User ID */}
+              <div className="space-y-2">
+                <FormLabel>User ID (Auto-generated)</FormLabel>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={generatedUserId} 
+                    disabled 
+                    className="bg-muted font-mono"
+                    placeholder="Enter name to generate User ID"
+                  />
+                  {generatedUserId && (
+                    <Badge variant="secondary" className="shrink-0">
+                      Login ID
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This ID will be used for login. It's auto-generated from the user's name.
+                </p>
+              </div>
+
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>Email (Optional)</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="Enter email address" {...field} />
                     </FormControl>
@@ -161,6 +205,22 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
                   </FormItem>
                 )}
               />
+
+              {!user && (
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Enter password (min 6 characters)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

@@ -51,11 +51,13 @@ export default function UserList() {
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
 
   const managers = users.filter(u => u.role === 'manager');
+  const existingUserIds = users.map(u => u.userId);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+      user.userId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     
@@ -75,14 +77,14 @@ export default function UserList() {
         createdAt: new Date(),
       };
       setUsers(prev => [newUser, ...prev]);
-      toast.success('User created successfully');
+      toast.success(`User created successfully. Login ID: ${newUser.userId}`);
     }
     setIsFormOpen(false);
     setEditingUser(null);
   };
 
   const handleResetPassword = (user: User) => {
-    toast.success(`Password reset link sent to ${user.email}`);
+    toast.success(`Password reset for ${user.name}. New temporary password sent.`);
   };
 
   const handleToggleStatus = (user: User) => {
@@ -151,6 +153,7 @@ export default function UserList() {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="font-semibold">User</TableHead>
+              <TableHead className="font-semibold">User ID</TableHead>
               <TableHead className="font-semibold">Contact</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
               <TableHead className="font-semibold">Permissions</TableHead>
@@ -173,9 +176,14 @@ export default function UserList() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                      {user.email && <p className="text-xs text-muted-foreground">{user.email}</p>}
                     </div>
                   </div>
+                </TableCell>
+                <TableCell>
+                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                    {user.userId}
+                  </code>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-muted-foreground">{user.phone}</p>
@@ -274,6 +282,7 @@ export default function UserList() {
         onSave={handleSaveUser}
         user={editingUser}
         managers={managers}
+        existingUserIds={existingUserIds}
       />
 
       <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>

@@ -4,12 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Building2, User, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { demoCredentials } from '@/data/mockData';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +20,7 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(userId, password);
     
     if (result.success) {
       toast.success('Welcome back!', {
@@ -28,9 +28,9 @@ export default function Login() {
       });
       
       // Route based on role
-      if (email === demoCredentials.admin.email) {
+      if (userId === demoCredentials.admin.userId) {
         navigate('/admin');
-      } else if (email === demoCredentials.manager.email) {
+      } else if (userId === demoCredentials.manager.userId) {
         navigate('/manager');
       } else {
         navigate('/staff');
@@ -46,7 +46,7 @@ export default function Login() {
 
   const handleQuickLogin = (role: 'admin' | 'manager' | 'staff') => {
     const creds = demoCredentials[role];
-    setEmail(creds.email);
+    setUserId(creds.userId);
     setPassword(creds.password);
   };
 
@@ -112,15 +112,15 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email Address</Label>
+              <Label htmlFor="userId" className="text-foreground">User ID</Label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="userId"
+                  type="text"
+                  placeholder="Enter your User ID"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
                   className="pl-12 h-12 input-field"
                   required
                 />
