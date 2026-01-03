@@ -27,6 +27,7 @@ import ManagerTasks from "@/pages/manager/ManagerTasks";
 import ManagerLeaves from "@/pages/manager/ManagerLeaves";
 import ManagerProjects from "@/pages/manager/ManagerProjects";
 import ManagerReports from "@/pages/manager/ManagerReports";
+import ManagerAnnouncements from "@/pages/manager/ManagerAnnouncements";
 
 // Staff Pages
 import StaffDashboard from "@/pages/staff/StaffDashboard";
@@ -34,6 +35,7 @@ import StaffLeads from "@/pages/staff/StaffLeads";
 import StaffTasks from "@/pages/staff/StaffTasks";
 import StaffLeaves from "@/pages/staff/StaffLeaves";
 import StaffProjects from "@/pages/staff/StaffProjects";
+import StaffAnnouncements from "@/pages/staff/StaffAnnouncements";
 
 // Shared Pages
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -76,6 +78,7 @@ const App = () => (
               <Route path="projects" element={<ManagerProjects />} />
               <Route path="leaves" element={<ManagerLeaves />} />
               <Route path="reports" element={<ManagerReports />} />
+              <Route path="announcements" element={<ManagerAnnouncements />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 
@@ -86,6 +89,7 @@ const App = () => (
               <Route path="tasks" element={<StaffTasks />} />
               <Route path="projects" element={<StaffProjects />} />
               <Route path="leaves" element={<StaffLeaves />} />
+              <Route path="announcements" element={<StaffAnnouncements />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 

@@ -170,87 +170,92 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-1 gap-4 w-full sm:w-auto flex-wrap">
-          <div className="relative flex-1 sm:max-w-xs min-w-[200px]">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-stretch sm:items-center flex-wrap">
+          <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search leads..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 input-field"
+              className="pl-10 input-field w-full"
             />
           </div>
           
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="interested">Interested</SelectItem>
-              <SelectItem value="not_interested">Not Interested</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="reminder">Reminder</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="interested">Interested</SelectItem>
+                <SelectItem value="not_interested">Not Interested</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="reminder">Reminder</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Projects</SelectItem>
-              {mockProjects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="All Projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Projects</SelectItem>
+                {mockProjects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          {/* Date Range Filter */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left font-normal min-w-[200px]">
-                <Calendar className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "MMM dd, yyyy")
-                  )
-                ) : (
-                  "Filter by date"
-                )}
+            {/* Date Range Filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="justify-start text-left font-normal w-full sm:w-auto sm:min-w-[180px]">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  <span className="truncate">
+                    {dateRange.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "MMM dd, yyyy")
+                      )
+                    ) : (
+                      "Filter by date"
+                    )}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  initialFocus
+                  mode="range"
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                  numberOfMonths={1}
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+
+            {dateRange.from && (
+              <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
+                Clear
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarComponent
-                initialFocus
-                mode="range"
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-
-          {dateRange.from && (
-            <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
-              Clear dates
-            </Button>
-          )}
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap justify-start sm:justify-end">
           <ExcelImportExport onImport={handleImportLeads} />
           {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
+            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Add Lead
             </Button>
@@ -260,7 +265,8 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
 
       {/* Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <Table>
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="font-semibold">
@@ -393,7 +399,8 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
 
         {filteredLeads.length === 0 && (
           <div className="text-center py-12">
