@@ -1,8 +1,17 @@
-import { Bell, Search, ArrowLeft } from 'lucide-react';
+import { Bell, Search, ArrowLeft, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface TopBarProps {
   title: string;
@@ -12,6 +21,7 @@ interface TopBarProps {
 
 export default function TopBar({ title, subtitle, showBackButton = true }: TopBarProps) {
   const { user } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -23,8 +33,8 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
   };
 
   return (
-    <header className="h-16 md:h-20 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-40">
-      <div className="flex items-center gap-2 md:gap-4 ml-10 lg:ml-0">
+    <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 lg:z-40">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Back Button - show on non-dashboard pages */}
         {showBackButton && !isDashboard && (
           <Button 
@@ -38,8 +48,8 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
         )}
         
         <div>
-          <h1 className="text-lg md:text-2xl font-bold text-foreground truncate max-w-[180px] sm:max-w-none">{title}</h1>
-          {subtitle && <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">{subtitle}</p>}
+          <h1 className="text-base md:text-xl font-bold text-foreground truncate max-w-[180px] sm:max-w-none">{title}</h1>
+          {subtitle && <p className="text-xs text-muted-foreground hidden sm:block">{subtitle}</p>}
         </div>
       </div>
 
@@ -52,10 +62,69 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
           />
         </div>
 
-        <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
-          <Bell className="w-4 h-4 md:w-5 md:h-5" />
-          <span className="absolute top-1.5 right-1.5 md:top-2 md:right-2 w-2 h-2 bg-destructive rounded-full" />
-        </Button>
+        {/* Bell Icon with Notifications Dropdown */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
+              <Bell className="w-4 h-4 md:w-5 md:h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 md:top-1 md:right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="end">
+            <div className="flex items-center justify-between p-3 border-b">
+              <h3 className="font-semibold">Notifications</h3>
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs h-7">
+                  Mark all read
+                </Button>
+              )}
+            </div>
+            <ScrollArea className="h-80">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  No notifications
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={cn(
+                        "p-3 hover:bg-muted/50 cursor-pointer transition-colors",
+                        !notification.read && "bg-primary/5"
+                      )}
+                      onClick={() => markAsRead(notification.id)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            "text-sm",
+                            !notification.read && "font-medium"
+                          )}>
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {notification.message}
+                          </p>
+                        </div>
+                        {!notification.read && (
+                          <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1.5" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(notification.createdAt, 'MMM dd, h:mm a')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
 
         <div className="hidden sm:flex items-center gap-2 md:gap-3 pl-2 md:pl-4 border-l border-border">
           <div className="w-8 h-8 md:w-10 md:h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-sm md:text-base">

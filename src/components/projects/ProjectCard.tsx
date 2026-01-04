@@ -1,12 +1,16 @@
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
-import { Building, MapPin, Calendar, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building, MapPin, Calendar, DollarSign, Eye, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
   project: Project;
   delay?: number;
+  onView?: (project: Project) => void;
+  onEdit?: (project: Project) => void;
+  canEdit?: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -15,7 +19,7 @@ const statusColors: Record<string, string> = {
   completed: 'bg-muted text-muted-foreground border-border',
 };
 
-export default function ProjectCard({ project, delay = 0 }: ProjectCardProps) {
+export default function ProjectCard({ project, delay = 0, onView, onEdit, canEdit = false }: ProjectCardProps) {
   const formatPrice = (val: number) => {
     if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
     if (val >= 1000) return `$${(val / 1000).toFixed(0)}K`;
@@ -91,6 +95,30 @@ export default function ProjectCard({ project, delay = 0 }: ProjectCardProps) {
             <Calendar className="w-3.5 h-3.5" />
             Possession: {format(project.possessionDate, 'MMM yyyy')}
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={() => onView?.(project)}
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            View Details
+          </Button>
+          {canEdit && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={() => onEdit?.(project)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+          )}
         </div>
       </div>
     </div>

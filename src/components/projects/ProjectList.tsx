@@ -3,6 +3,7 @@ import { mockProjects } from '@/data/mockData';
 import { Project } from '@/types';
 import ProjectCard from './ProjectCard';
 import ProjectFormModal from './ProjectFormModal';
+import ProjectDetailsModal from './ProjectDetailsModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,11 +18,12 @@ import { toast } from 'sonner';
 
 interface ProjectListProps {
   canCreate?: boolean;
+  canEdit?: boolean;
 }
 
 const locations = ['Vizag', 'Gajuwaka', 'Kakinada', 'Rajamundry', 'Vijayawada'];
 
-export default function ProjectList({ canCreate = false }: ProjectListProps) {
+export default function ProjectList({ canCreate = false, canEdit = false }: ProjectListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -29,6 +31,8 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [viewingProject, setViewingProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,12 +56,31 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
     toast.success('Project added successfully!');
   };
 
+  const handleEditProject = (projectData: Omit<Project, 'id' | 'createdAt'>) => {
+    if (editingProject) {
+      setProjects(prev => prev.map(p => 
+        p.id === editingProject.id ? { ...p, ...projectData } : p
+      ));
+      toast.success('Project updated successfully!');
+      setEditingProject(null);
+    }
+  };
+
+  const handleViewProject = (project: Project) => {
+    setViewingProject(project);
+  };
+
+  const handleEditClick = (project: Project) => {
+    setEditingProject(project);
+    setIsFormOpen(true);
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Filters */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-stretch sm:items-center flex-wrap">
-          <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
+        <div className="flex flex-col gap-3">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search projects..."
@@ -67,10 +90,10 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
             />
           </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue placeholder="All Status" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
@@ -81,8 +104,8 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
             </Select>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue placeholder="All Types" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
@@ -93,8 +116,8 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
             </Select>
 
             <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue placeholder="All Locations" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Location" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Locations</SelectItem>
@@ -106,7 +129,7 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex rounded-lg border border-border overflow-hidden">
             <Button
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -127,7 +150,7 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
           </div>
 
           {canCreate && (
-            <Button className="btn-accent flex-1 sm:flex-none" onClick={() => setIsFormOpen(true)}>
+            <Button className="btn-accent" onClick={() => { setEditingProject(null); setIsFormOpen(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               Add Project
             </Button>
@@ -138,7 +161,14 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredProjects.map((project, index) => (
-          <ProjectCard key={project.id} project={project} delay={index * 100} />
+          <ProjectCard 
+            key={project.id} 
+            project={project} 
+            delay={index * 100}
+            onView={handleViewProject}
+            onEdit={handleEditClick}
+            canEdit={canEdit}
+          />
         ))}
       </div>
 
@@ -148,11 +178,22 @@ export default function ProjectList({ canCreate = false }: ProjectListProps) {
         </div>
       )}
 
-      {/* Add Project Modal */}
+      {/* Add/Edit Project Modal */}
       <ProjectFormModal
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSubmit={handleAddProject}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingProject(null);
+        }}
+        onSubmit={editingProject ? handleEditProject : handleAddProject}
+        project={editingProject}
+      />
+
+      {/* Project Details Modal */}
+      <ProjectDetailsModal
+        project={viewingProject}
+        open={!!viewingProject}
+        onClose={() => setViewingProject(null)}
       />
     </div>
   );

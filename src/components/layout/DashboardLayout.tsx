@@ -33,15 +33,17 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
         />
       )}
       
-      {/* Mobile Menu Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-4 left-4 z-50 lg:hidden"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
-        {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </Button>
+      {/* Fixed Header for Mobile */}
+      <div className="fixed top-0 left-0 right-0 h-14 bg-card border-b border-border z-50 lg:hidden flex items-center px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </Button>
+      </div>
 
       {/* Sidebar - Hidden on mobile, shown on lg+ */}
       <div className={cn(
@@ -51,7 +53,7 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
         <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
       </div>
 
-      <main className="flex-1 overflow-auto w-full">
+      <main className="flex-1 overflow-auto w-full pt-14 lg:pt-0">
         <div className="animate-fade-in">
           <Outlet />
         </div>

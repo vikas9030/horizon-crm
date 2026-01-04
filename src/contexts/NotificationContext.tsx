@@ -1,37 +1,32 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Lead, Task } from '@/types';
+import { mockLeads, mockTasks, mockAnnouncements } from '@/data/mockData';
 import { isAfter, isBefore, addDays, isToday } from 'date-fns';
 
-interface NotificationState {
-  leadReminders: number;
-  taskReminders: number;
-  overdueLeads: number;
-  overdueTasks: number;
-  totalNotifications: number;
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'lead' | 'task' | 'announcement' | 'reminder';
+  createdAt: Date;
+  read: boolean;
 }
 
 interface NotificationContextType {
-  notifications: NotificationState;
-  updateNotifications: (leads: Lead[], tasks: Task[]) => void;
+  notifications: Notification[];
+  unreadCount: number;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  clearNotifications: () => void;
   playNotificationSound: () => void;
-  hasNewNotifications: boolean;
-  markAsRead: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<NotificationState>({
-    leadReminders: 0,
-    taskReminders: 0,
-    overdueLeads: 0,
-    overdueTasks: 0,
-    totalNotifications: 0,
-  });
-  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const playNotificationSound = useCallback(() => {
-    // Create a simple notification beep using Web Audio API
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
@@ -53,70 +48,81 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const updateNotifications = useCallback((leads: Lead[], tasks: Task[]) => {
+  useEffect(() => {
     const today = new Date();
     const nextWeek = addDays(today, 7);
+    
+    const leadNotifications: Notification[] = mockLeads
+      .filter(l => 
+        l.status === 'reminder' && 
+        l.followUpDate && 
+        ((isAfter(l.followUpDate, today) && isBefore(l.followUpDate, nextWeek)) ||
+         (isBefore(l.followUpDate, today) && !isToday(l.followUpDate)))
+      )
+      .map(lead => ({
+        id: `lead-${lead.id}`,
+        title: 'Lead Follow-up',
+        message: `Follow-up required for ${lead.name}`,
+        type: 'lead' as const,
+        createdAt: lead.followUpDate || new Date(),
+        read: false,
+      }));
 
-    // Get leads with reminder status and upcoming follow-up dates
-    const upcomingLeadReminders = leads.filter(l => 
-      l.status === 'reminder' && 
-      l.followUpDate && 
-      isAfter(l.followUpDate, today) &&
-      isBefore(l.followUpDate, nextWeek)
-    ).length;
+    const taskNotifications: Notification[] = mockTasks
+      .filter(t => 
+        t.nextActionDate && 
+        ((isAfter(t.nextActionDate, today) && isBefore(t.nextActionDate, nextWeek)) ||
+         (isBefore(t.nextActionDate, today) && !isToday(t.nextActionDate))) &&
+        t.status !== 'completed' && 
+        t.status !== 'rejected'
+      )
+      .map(task => ({
+        id: `task-${task.id}`,
+        title: 'Task Action Required',
+        message: `Action needed for ${task.lead.name}`,
+        type: 'task' as const,
+        createdAt: task.nextActionDate || new Date(),
+        read: false,
+      }));
 
-    // Overdue leads (follow-up date passed)
-    const overdueLeads = leads.filter(l => 
-      l.status === 'reminder' && 
-      l.followUpDate && 
-      isBefore(l.followUpDate, today) &&
-      !isToday(l.followUpDate)
-    ).length;
+    const announcementNotifications: Notification[] = mockAnnouncements
+      .filter(a => a.isActive && (!a.expiresAt || new Date(a.expiresAt) > new Date()))
+      .map(announcement => ({
+        id: `announcement-${announcement.id}`,
+        title: 'Announcement',
+        message: announcement.title,
+        type: 'announcement' as const,
+        createdAt: announcement.createdAt,
+        read: false,
+      }));
 
-    // Get tasks with upcoming action dates
-    const upcomingTaskReminders = tasks.filter(t => 
-      t.nextActionDate && 
-      isAfter(t.nextActionDate, today) &&
-      isBefore(t.nextActionDate, nextWeek) &&
-      t.status !== 'completed' && 
-      t.status !== 'rejected'
-    ).length;
-
-    // Overdue tasks
-    const overdueTasks = tasks.filter(t => 
-      t.nextActionDate && 
-      isBefore(t.nextActionDate, today) &&
-      !isToday(t.nextActionDate) &&
-      t.status !== 'completed' && 
-      t.status !== 'rejected'
-    ).length;
-
-    const totalNotifications = upcomingLeadReminders + upcomingTaskReminders + overdueLeads + overdueTasks;
-
-    setNotifications({
-      leadReminders: upcomingLeadReminders,
-      taskReminders: upcomingTaskReminders,
-      overdueLeads,
-      overdueTasks,
-      totalNotifications,
-    });
-
-    if (totalNotifications > 0) {
-      setHasNewNotifications(true);
-    }
+    setNotifications([...announcementNotifications, ...leadNotifications, ...taskNotifications]);
   }, []);
 
-  const markAsRead = useCallback(() => {
-    setHasNewNotifications(false);
-  }, []);
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAsRead = (id: string) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === id ? { ...n, read: true } : n)
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearNotifications = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   return (
     <NotificationContext.Provider value={{ 
       notifications, 
-      updateNotifications, 
-      playNotificationSound,
-      hasNewNotifications,
-      markAsRead
+      unreadCount, 
+      markAsRead, 
+      markAllAsRead, 
+      clearNotifications,
+      playNotificationSound 
     }}>
       {children}
     </NotificationContext.Provider>
