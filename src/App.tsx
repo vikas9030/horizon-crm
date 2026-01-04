@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { DataProvider } from "@/contexts/DataContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 // Pages
@@ -47,57 +49,61 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
+      <NotificationProvider>
+        <DataProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="/login" element={<Login />} />
 
-            {/* Admin Routes */}
-            <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="leads" element={<AdminLeads />} />
-              <Route path="tasks" element={<AdminTasks />} />
-              <Route path="projects" element={<AdminProjects />} />
-              <Route path="leaves" element={<AdminLeaves />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="announcements" element={<AdminAnnouncements />} />
-              <Route path="activity" element={<AdminActivity />} />
-              <Route path="reports" element={<AdminReports />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
+                {/* Admin Routes */}
+                <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="leads" element={<AdminLeads />} />
+                  <Route path="tasks" element={<AdminTasks />} />
+                  <Route path="projects" element={<AdminProjects />} />
+                  <Route path="leaves" element={<AdminLeaves />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="announcements" element={<AdminAnnouncements />} />
+                  <Route path="activity" element={<AdminActivity />} />
+                  <Route path="reports" element={<AdminReports />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
 
-            {/* Manager Routes */}
-            <Route path="/manager" element={<DashboardLayout requiredRole="manager" />}>
-              <Route index element={<ManagerDashboard />} />
-              <Route path="leads" element={<ManagerLeads />} />
-              <Route path="tasks" element={<ManagerTasks />} />
-              <Route path="projects" element={<ManagerProjects />} />
-              <Route path="leaves" element={<ManagerLeaves />} />
-              <Route path="reports" element={<ManagerReports />} />
-              <Route path="announcements" element={<ManagerAnnouncements />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
+                {/* Manager Routes */}
+                <Route path="/manager" element={<DashboardLayout requiredRole="manager" />}>
+                  <Route index element={<ManagerDashboard />} />
+                  <Route path="leads" element={<ManagerLeads />} />
+                  <Route path="tasks" element={<ManagerTasks />} />
+                  <Route path="projects" element={<ManagerProjects />} />
+                  <Route path="leaves" element={<ManagerLeaves />} />
+                  <Route path="reports" element={<ManagerReports />} />
+                  <Route path="announcements" element={<ManagerAnnouncements />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
 
-            {/* Staff Routes */}
-            <Route path="/staff" element={<DashboardLayout requiredRole="staff" />}>
-              <Route index element={<StaffDashboard />} />
-              <Route path="leads" element={<StaffLeads />} />
-              <Route path="tasks" element={<StaffTasks />} />
-              <Route path="projects" element={<StaffProjects />} />
-              <Route path="leaves" element={<StaffLeaves />} />
-              <Route path="announcements" element={<StaffAnnouncements />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
+                {/* Staff Routes */}
+                <Route path="/staff" element={<DashboardLayout requiredRole="staff" />}>
+                  <Route index element={<StaffDashboard />} />
+                  <Route path="leads" element={<StaffLeads />} />
+                  <Route path="tasks" element={<StaffTasks />} />
+                  <Route path="projects" element={<StaffProjects />} />
+                  <Route path="leaves" element={<StaffLeaves />} />
+                  <Route path="announcements" element={<StaffAnnouncements />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </DataProvider>
+      </NotificationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

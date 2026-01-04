@@ -173,8 +173,8 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
     <div className="space-y-4 md:space-y-6">
       {/* Filters */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-stretch sm:items-center flex-wrap">
-          <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
+        <div className="flex flex-col gap-3">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search leads..."
@@ -184,10 +184,10 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
             />
           </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-36">
-                <SelectValue placeholder="All Status" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
@@ -199,8 +199,8 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
             </Select>
 
             <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="All Projects" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Project" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
@@ -215,19 +215,19 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
             {/* Date Range Filter */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start text-left font-normal w-full sm:w-auto sm:min-w-[180px]">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span className="truncate">
+                <Button variant="outline" className="justify-start text-left font-normal w-full col-span-2 sm:col-span-1">
+                  <Calendar className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate text-xs">
                     {dateRange.from ? (
                       dateRange.to ? (
                         <>
                           {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
                         </>
                       ) : (
-                        format(dateRange.from, "MMM dd, yyyy")
+                        format(dateRange.from, "MMM dd")
                       )
                     ) : (
-                      "Filter by date"
+                      "Date"
                     )}
                   </span>
                 </Button>
@@ -245,17 +245,17 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
             </Popover>
 
             {dateRange.from && (
-              <Button variant="ghost" size="sm" onClick={() => setDateRange({})}>
+              <Button variant="ghost" size="sm" onClick={() => setDateRange({})} className="col-span-2 sm:col-span-1">
                 Clear
               </Button>
             )}
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-start sm:justify-end">
+        <div className="flex gap-2 flex-wrap justify-between">
           <ExcelImportExport onImport={handleImportLeads} />
           {canCreate && (
-            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0 w-full sm:w-auto">
+            <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
               <Plus className="w-4 h-4 mr-2" />
               Add Lead
             </Button>
@@ -263,10 +263,54 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
         </div>
       </div>
 
-      {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filteredLeads.map((lead, index) => (
+          <div 
+            key={lead.id} 
+            className="glass-card rounded-xl p-4 animate-fade-in"
+            style={{ animationDelay: `${index * 50}ms` }}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="font-medium text-foreground">{lead.name}</p>
+                <p className="text-xs text-muted-foreground capitalize">{lead.source || 'Direct'}</p>
+              </div>
+              <LeadStatusChip status={lead.status} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Phone className="w-3.5 h-3.5" />
+                <span className="truncate">{lead.phone}</span>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Mail className="w-3.5 h-3.5" />
+                <span className="truncate">{lead.email}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+              <span>{getProjectName(lead.assignedProject)}</span>
+              <span>{formatBudget(lead.budgetMin, lead.budgetMax)}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingLead(lead)}>
+                <Eye className="w-3.5 h-3.5 mr-1" />
+                View
+              </Button>
+              {canEdit && (
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingLead(lead); setIsFormOpen(true); }}>
+                  <Edit className="w-3.5 h-3.5 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="glass-card rounded-2xl overflow-hidden hidden md:block">
+        <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="font-semibold">
@@ -399,15 +443,14 @@ export default function LeadList({ canCreate = true, canEdit = true, canConvert 
               </TableRow>
             ))}
           </TableBody>
-          </Table>
-        </div>
-
-        {filteredLeads.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No leads found</p>
-          </div>
-        )}
+        </Table>
       </div>
+
+      {filteredLeads.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No leads found</p>
+        </div>
+      )}
 
       <LeadFormModal
         open={isFormOpen}

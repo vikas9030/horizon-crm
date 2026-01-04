@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Project, ProjectStatus } from '@/types';
 import {
   Dialog,
@@ -61,6 +61,47 @@ export default function ProjectFormModal({
   const [coverImage, setCoverImage] = useState(project?.coverImage || '');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  // Reset form when project changes or modal opens
+  useEffect(() => {
+    if (open) {
+      if (project) {
+        setFormData({
+          name: project.name || '',
+          location: project.location || '',
+          type: project.type || 'apartment',
+          priceMin: project.priceMin?.toString() || '',
+          priceMax: project.priceMax?.toString() || '',
+          launchDate: project.launchDate ? new Date(project.launchDate).toISOString().split('T')[0] : '',
+          possessionDate: project.possessionDate ? new Date(project.possessionDate).toISOString().split('T')[0] : '',
+          description: project.description || '',
+          towerDetails: project.towerDetails || '',
+          status: project.status || 'upcoming',
+        });
+        setAmenities(project.amenities || []);
+        setNearbyLandmarks(project.nearbyLandmarks || []);
+        setPhotos(project.photos || []);
+        setCoverImage(project.coverImage || '');
+      } else {
+        setFormData({
+          name: '',
+          location: '',
+          type: 'apartment',
+          priceMin: '',
+          priceMax: '',
+          launchDate: '',
+          possessionDate: '',
+          description: '',
+          towerDetails: '',
+          status: 'upcoming',
+        });
+        setAmenities([]);
+        setNearbyLandmarks([]);
+        setPhotos([]);
+        setCoverImage('');
+      }
+    }
+  }, [project, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
