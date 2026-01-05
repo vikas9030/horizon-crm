@@ -480,6 +480,7 @@ export default function LeadList({
         }}
         onSave={handleSaveLead}
         lead={editingLead}
+        projects={projects}
       />
 
       <LeadDetailsModal

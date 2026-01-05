@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lead, LeadStatus, RequirementType, LeadSource } from '@/types';
-import { mockProjects } from '@/data/mockData';
+import { Lead, LeadStatus, RequirementType, LeadSource, Project } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -29,9 +28,10 @@ interface LeadFormModalProps {
   onClose: () => void;
   onSave: (lead: Partial<Lead>) => void;
   lead?: Lead | null;
+  projects: Project[];
 }
 
-export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormModalProps) {
+export default function LeadFormModal({ open, onClose, onSave, lead, projects }: LeadFormModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -181,7 +181,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead }: LeadFormM
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
               <SelectContent>
-                {mockProjects.map((project) => (
+                {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name} - {project.location}
                   </SelectItem>
