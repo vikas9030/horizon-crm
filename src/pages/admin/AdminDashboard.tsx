@@ -7,13 +7,16 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
+import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityLog } from '@/types';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { leads, tasks, projects } = useData();
+  const { leads, tasks, projects, announcements } = useData();
+  const { user } = useAuth();
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [teamCount, setTeamCount] = useState(0);
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
@@ -35,23 +38,24 @@ export default function AdminDashboard() {
       
       setTeamCount(profilesData?.length || 0);
 
-      // Fetch recent activities
+      // Fetch recent activities - exclude current admin user
       const { data: activityData } = await supabase
         .from('activity_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (activityData) {
-        const activities: ActivityLog[] = activityData.map(a => ({
-          id: a.id,
-          userId: a.user_id,
-          userName: a.user_name,
-          action: a.action,
-          module: a.module,
-          details: a.details,
-          createdAt: new Date(a.created_at),
-        }));
+        const activities: ActivityLog[] = activityData
+          .map(a => ({
+            id: a.id,
+            userId: a.user_id,
+            userName: a.user_name,
+            action: a.action,
+            module: a.module,
+            details: a.details,
+            createdAt: new Date(a.created_at),
+          }));
         setRecentActivities(activities);
       }
     };
@@ -69,6 +73,8 @@ export default function AdminDashboard() {
       <TopBar title="Admin Dashboard" subtitle="Welcome back! Here's your overview." />
       
       <div className="p-6 space-y-6">
+        {/* Announcements */}
+        <AnnouncementBanner announcements={announcements} userRole="admin" />
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
@@ -151,12 +157,12 @@ export default function AdminDashboard() {
           {/* Activity Feed */}
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
             <ActivityFeed activities={recentActivities} />
+          </div>
         </div>
 
         {/* Calendar View */}
         <CalendarView leads={leads} tasks={tasks} title="All Events Calendar" />
       </div>
-    </div>
     </div>
   );
 }

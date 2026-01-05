@@ -64,7 +64,7 @@ const navItems: NavItem[] = [
   { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'staff'] },
   { label: 'Projects', icon: Building, href: '/projects', roles: ['admin', 'manager', 'staff'] },
   { label: 'Leaves', icon: CalendarOff, href: '/leaves', roles: ['admin', 'manager', 'staff'] },
-  { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin', 'manager'] },
+  { label: 'Reports', icon: BarChart3, href: '/reports', roles: ['admin'] },
   { label: 'Activity', icon: Activity, href: '/activity', roles: ['admin'] },
 ];
 

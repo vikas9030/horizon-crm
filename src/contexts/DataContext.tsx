@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Announcement, Lead, Project, Task } from '@/types';
 import { useNotifications } from './NotificationContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -123,6 +123,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const isRefreshing = useRef(false);
   
   const notificationContext = useNotifications();
 
@@ -191,6 +192,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshData = useCallback(async () => {
+    // Prevent multiple simultaneous refreshes
+    if (isRefreshing.current) return;
+    isRefreshing.current = true;
     setLoading(true);
     try {
       const projectsList = await fetchProjects();
@@ -201,6 +205,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error('Error refreshing data:', error);
     } finally {
       setLoading(false);
+      isRefreshing.current = false;
     }
   }, [fetchProjects, fetchLeads, fetchTasks, fetchAnnouncements]);
 
@@ -209,17 +214,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData();
   }, [refreshData]);
 
-  // Real-time subscriptions
+  // Real-time subscriptions with debounce
   useEffect(() => {
+    let timeout: NodeJS.Timeout | null = null;
+    
+    const debouncedRefresh = () => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        refreshData();
+      }, 300);
+    };
+
     const channel = supabase
       .channel('data-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refreshData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => refreshData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, debouncedRefresh)
       .subscribe();
 
     return () => {
+      if (timeout) clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
   }, [refreshData]);

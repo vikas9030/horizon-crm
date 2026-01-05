@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface AnnouncementBannerProps {
   announcements: Announcement[];
-  userRole: 'manager' | 'staff';
+  userRole: 'manager' | 'staff' | 'admin';
 }
 
 export default function AnnouncementBanner({ announcements, userRole }: AnnouncementBannerProps) {
@@ -13,7 +13,7 @@ export default function AnnouncementBanner({ announcements, userRole }: Announce
 
   const visibleAnnouncements = announcements.filter(
     a => a.isActive && 
-    a.targetRoles.includes(userRole) && 
+    (userRole === 'admin' || a.targetRoles.includes(userRole as 'manager' | 'staff')) && 
     !dismissedIds.includes(a.id) &&
     (!a.expiresAt || new Date(a.expiresAt) > new Date())
   );
