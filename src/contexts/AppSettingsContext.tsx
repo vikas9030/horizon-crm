@@ -5,6 +5,7 @@ interface AppSettings {
   id: string;
   app_name: string;
   logo_url: string | null;
+  favicon_url: string | null;
   primary_color: string;
   accent_color: string;
   sidebar_color: string;
@@ -22,6 +23,7 @@ const defaultSettings: AppSettings = {
   id: '',
   app_name: 'ESWARI CRM',
   logo_url: null,
+  favicon_url: null,
   primary_color: '215 80% 35%',
   accent_color: '38 95% 55%',
   sidebar_color: '220 30% 12%',
@@ -39,6 +41,20 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     root.style.setProperty('--primary', s.primary_color);
     root.style.setProperty('--accent', s.accent_color);
     root.style.setProperty('--sidebar-background', s.sidebar_color);
+    
+    // Update favicon
+    let faviconLink = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+    if (s.favicon_url) {
+      if (!faviconLink) {
+        faviconLink = document.createElement('link');
+        faviconLink.rel = 'icon';
+        document.head.appendChild(faviconLink);
+      }
+      faviconLink.href = s.favicon_url;
+    }
+    
+    // Update page title
+    document.title = s.app_name || 'ESWARI CRM';
     
     // Remove old custom CSS if exists
     const oldStyle = document.getElementById('custom-app-css');

@@ -20,6 +20,7 @@ export type Database = {
           app_name: string
           created_at: string
           custom_css: string | null
+          favicon_url: string | null
           id: string
           logo_url: string | null
           primary_color: string
@@ -31,6 +32,7 @@ export type Database = {
           app_name?: string
           created_at?: string
           custom_css?: string | null
+          favicon_url?: string | null
           id?: string
           logo_url?: string | null
           primary_color?: string
@@ -42,6 +44,7 @@ export type Database = {
           app_name?: string
           created_at?: string
           custom_css?: string | null
+          favicon_url?: string | null
           id?: string
           logo_url?: string | null
           primary_color?: string
