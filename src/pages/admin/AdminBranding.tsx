@@ -8,17 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Upload, Palette, Code, Building2, Loader2 } from 'lucide-react';
+import { Upload, Palette, Code, Building2, Loader2, Globe } from 'lucide-react';
 
 const AdminBranding = () => {
   const { settings, updateSettings, isLoading } = useAppSettings();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
 
   const [formData, setFormData] = useState({
     app_name: '',
     logo_url: '',
+    favicon_url: '',
     primary_color: '',
     accent_color: '',
     sidebar_color: '',
@@ -30,6 +33,7 @@ const AdminBranding = () => {
       setFormData({
         app_name: settings.app_name || '',
         logo_url: settings.logo_url || '',
+        favicon_url: settings.favicon_url || '',
         primary_color: settings.primary_color || '',
         accent_color: settings.accent_color || '',
         sidebar_color: settings.sidebar_color || '',
@@ -38,7 +42,10 @@ const AdminBranding = () => {
     }
   }, [settings]);
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'logo' | 'favicon'
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -47,15 +54,22 @@ const AdminBranding = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Please upload an image under 2MB', variant: 'destructive' });
+    const maxSize = type === 'favicon' ? 512 * 1024 : 2 * 1024 * 1024; // 512KB for favicon, 2MB for logo
+    if (file.size > maxSize) {
+      toast({ 
+        title: 'File too large', 
+        description: `Please upload an image under ${type === 'favicon' ? '512KB' : '2MB'}`, 
+        variant: 'destructive' 
+      });
       return;
     }
 
-    setIsUploading(true);
+    if (type === 'logo') setIsUploadingLogo(true);
+    else setIsUploadingFavicon(true);
+
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const fileName = `${type}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('project-images')
@@ -67,12 +81,14 @@ const AdminBranding = () => {
         .from('project-images')
         .getPublicUrl(fileName);
 
-      setFormData(prev => ({ ...prev, logo_url: urlData.publicUrl }));
-      toast({ title: 'Logo uploaded successfully' });
+      const fieldName = type === 'logo' ? 'logo_url' : 'favicon_url';
+      setFormData(prev => ({ ...prev, [fieldName]: urlData.publicUrl }));
+      toast({ title: `${type === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully` });
     } catch (error: any) {
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
     } finally {
-      setIsUploading(false);
+      if (type === 'logo') setIsUploadingLogo(false);
+      else setIsUploadingFavicon(false);
     }
   };
 
@@ -82,6 +98,7 @@ const AdminBranding = () => {
       await updateSettings({
         app_name: formData.app_name,
         logo_url: formData.logo_url || null,
+        favicon_url: formData.favicon_url || null,
         primary_color: formData.primary_color,
         accent_color: formData.accent_color,
         sidebar_color: formData.sidebar_color,
@@ -181,17 +198,17 @@ const AdminBranding = () => {
                 <div>
                   <input
                     type="file"
-                    ref={fileInputRef}
-                    onChange={handleLogoUpload}
+                    ref={logoInputRef}
+                    onChange={(e) => handleImageUpload(e, 'logo')}
                     accept="image/*"
                     className="hidden"
                   />
                   <Button
                     variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={isUploadingLogo}
                   >
-                    {isUploading ? (
+                    {isUploadingLogo ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Upload className="h-4 w-4 mr-2" />
@@ -199,6 +216,42 @@ const AdminBranding = () => {
                     Upload Logo
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">Recommended: 200x200px, max 2MB</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Favicon Upload */}
+            <div className="space-y-2">
+              <Label>Favicon (Browser Tab Icon)</Label>
+              <div className="flex items-center gap-4">
+                {formData.favicon_url ? (
+                  <img src={formData.favicon_url} alt="Favicon" className="h-12 w-12 object-contain rounded-lg border" />
+                ) : (
+                  <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center">
+                    <Globe className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <input
+                    type="file"
+                    ref={faviconInputRef}
+                    onChange={(e) => handleImageUpload(e, 'favicon')}
+                    accept="image/png,image/x-icon,image/svg+xml"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => faviconInputRef.current?.click()}
+                    disabled={isUploadingFavicon}
+                  >
+                    {isUploadingFavicon ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    Upload Favicon
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">Recommended: 32x32px or 64x64px PNG, max 512KB</p>
                 </div>
               </div>
             </div>
