@@ -46,7 +46,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
     source: 'website' as LeadSource,
     status: 'pending' as LeadStatus,
     followUpDate: null as Date | null,
-    assignedProject: '' as string,
+    assignedProject: 'none' as string,
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -66,7 +66,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
         source: lead.source || 'website',
         status: lead.status,
         followUpDate: lead.followUpDate || null,
-        assignedProject: lead.assignedProject || '',
+        assignedProject: lead.assignedProject || 'none',
       });
     } else {
       setFormData({
@@ -83,7 +83,7 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
         source: 'website',
         status: 'pending',
         followUpDate: null,
-        assignedProject: '',
+        assignedProject: 'none',
       });
     }
   }, [lead, open]);
@@ -98,11 +98,10 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.assignedProject) {
-      return;
-    }
+
     onSave({
       ...formData,
+      assignedProject: formData.assignedProject === 'none' ? undefined : formData.assignedProject,
       followUpDate: formData.followUpDate || undefined,
     });
   };
@@ -171,16 +170,16 @@ export default function LeadFormModal({ open, onClose, onSave, lead, projects }:
           </div>
 
           <div className="space-y-2">
-            <Label>Assigned Project <span className="text-destructive">*</span></Label>
+            <Label>Assigned Project</Label>
             <Select
               value={formData.assignedProject}
               onValueChange={(value) => setFormData({ ...formData, assignedProject: value })}
-              required
             >
-              <SelectTrigger className={cn(!formData.assignedProject && "text-muted-foreground")}>
-                <SelectValue placeholder="Select a project" />
+              <SelectTrigger>
+                <SelectValue placeholder="Select a project (optional)" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">No project</SelectItem>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name} - {project.location}

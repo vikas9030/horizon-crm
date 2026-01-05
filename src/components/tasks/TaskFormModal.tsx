@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Task, TaskStatus, Lead } from '@/types';
-import { mockProjects } from '@/data/mockData';
+import { Task, TaskStatus, Lead, Project } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -30,12 +29,21 @@ interface TaskFormModalProps {
   task?: Task | null;
   isCreating?: boolean;
   availableLeads?: Lead[];
+  projects: Project[];
 }
 
-export default function TaskFormModal({ open, onClose, onSave, task, isCreating = false, availableLeads = [] }: TaskFormModalProps) {
+export default function TaskFormModal({
+  open,
+  onClose,
+  onSave,
+  task,
+  isCreating = false,
+  availableLeads = [],
+  projects,
+}: TaskFormModalProps) {
   const [formData, setFormData] = useState({
     status: 'pending' as TaskStatus,
-    assignedProject: '' as string,
+    assignedProject: 'none' as string,
     nextActionDate: null as Date | null,
     notes: '' as string,
     selectedLeadId: '' as string,
@@ -46,7 +54,7 @@ export default function TaskFormModal({ open, onClose, onSave, task, isCreating 
     if (task) {
       setFormData({
         status: task.status,
-        assignedProject: task.assignedProject || '',
+        assignedProject: task.assignedProject || 'none',
         nextActionDate: task.nextActionDate || null,
         notes: task.notes.length > 0 ? task.notes[task.notes.length - 1].content : '',
         selectedLeadId: '',
@@ -54,7 +62,7 @@ export default function TaskFormModal({ open, onClose, onSave, task, isCreating 
     } else {
       setFormData({
         status: 'pending',
-        assignedProject: '',
+        assignedProject: 'none',
         nextActionDate: null,
         notes: '',
         selectedLeadId: '',
@@ -64,27 +72,26 @@ export default function TaskFormModal({ open, onClose, onSave, task, isCreating 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.assignedProject) {
-      return;
-    }
-    
+
+    const assignedProject = formData.assignedProject === 'none' ? undefined : formData.assignedProject;
+
     if (isCreating) {
       if (!formData.selectedLeadId) {
         return;
       }
       const selectedLead = availableLeads.find(l => l.id === formData.selectedLeadId);
       if (!selectedLead) return;
-      
+
       onSave({
         lead: selectedLead,
         status: formData.status,
-        assignedProject: formData.assignedProject,
+        assignedProject,
         nextActionDate: formData.nextActionDate || undefined,
-        notes: formData.notes ? [{ 
-          id: String(Date.now()), 
-          content: formData.notes, 
-          createdBy: '3', 
-          createdAt: new Date() 
+        notes: formData.notes ? [{
+          id: String(Date.now()),
+          content: formData.notes,
+          createdBy: 'unknown',
+          createdAt: new Date()
         }] : [],
         attachments: [],
       });
@@ -92,7 +99,7 @@ export default function TaskFormModal({ open, onClose, onSave, task, isCreating 
       onSave({
         ...task,
         status: formData.status,
-        assignedProject: formData.assignedProject,
+        assignedProject,
         nextActionDate: formData.nextActionDate || undefined,
         updatedAt: new Date(),
       });
@@ -140,17 +147,17 @@ export default function TaskFormModal({ open, onClose, onSave, task, isCreating 
           )}
 
           <div className="space-y-2">
-            <Label>Assigned Project <span className="text-destructive">*</span></Label>
+            <Label>Assigned Project</Label>
             <Select
               value={formData.assignedProject}
               onValueChange={(value) => setFormData({ ...formData, assignedProject: value })}
-              required
             >
-              <SelectTrigger className={cn(!formData.assignedProject && "text-muted-foreground")}>
-                <SelectValue placeholder="Select a project" />
+              <SelectTrigger>
+                <SelectValue placeholder="Select a project (optional)" />
               </SelectTrigger>
               <SelectContent>
-                {mockProjects.map((project) => (
+                <SelectItem value="none">No project</SelectItem>
+                {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name} - {project.location}
                   </SelectItem>
@@ -225,10 +232,10 @@ export default function TaskFormModal({ open, onClose, onSave, task, isCreating 
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              className="btn-primary" 
-              disabled={!formData.assignedProject || (isCreating && !formData.selectedLeadId)}
+            <Button
+              type="submit"
+              className="btn-primary"
+              disabled={isCreating && !formData.selectedLeadId}
             >
               {task ? 'Update Task' : 'Create Task'}
             </Button>

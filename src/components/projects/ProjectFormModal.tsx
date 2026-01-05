@@ -106,7 +106,7 @@ export default function ProjectFormModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.location || !formData.priceMin || !formData.priceMax) {
+    if (!formData.name || !formData.location || !formData.priceMin || !formData.priceMax || !formData.launchDate || !formData.possessionDate) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -387,12 +387,13 @@ export default function ProjectFormModal({
           {/* Dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="launchDate">Launch Date</Label>
+              <Label htmlFor="launchDate">Launch Date *</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="launchDate"
                   type="date"
+                  required
                   value={formData.launchDate}
                   onChange={(e) => setFormData({ ...formData, launchDate: e.target.value })}
                   className="pl-10 input-field"
@@ -401,12 +402,13 @@ export default function ProjectFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="possessionDate">Possession Date</Label>
+              <Label htmlFor="possessionDate">Possession Date *</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="possessionDate"
                   type="date"
+                  required
                   value={formData.possessionDate}
                   onChange={(e) => setFormData({ ...formData, possessionDate: e.target.value })}
                   className="pl-10 input-field"
