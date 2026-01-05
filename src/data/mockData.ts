@@ -100,6 +100,7 @@ const addDays = (days: number) => {
   return date;
 };
 
+// All leads, tasks, announcements are empty - fresh data
 export const mockLeads: Lead[] = [];
 
 export const mockTasks: Task[] = [];
@@ -169,93 +170,9 @@ export const mockProjects: Project[] = [
   },
 ];
 
-export const mockLeaves: Leave[] = [
-  {
-    id: '1',
-    userId: '3',
-    userName: 'Mike Staff',
-    userRole: 'staff',
-    type: 'casual',
-    startDate: new Date('2024-06-20'),
-    endDate: new Date('2024-06-21'),
-    reason: 'Personal work',
-    status: 'pending',
-    createdAt: new Date('2024-06-15'),
-  },
-  {
-    id: '2',
-    userId: '4',
-    userName: 'Emma Wilson',
-    userRole: 'staff',
-    type: 'sick',
-    startDate: new Date('2024-06-10'),
-    endDate: new Date('2024-06-11'),
-    reason: 'Medical appointment',
-    status: 'approved',
-    approvedBy: '2',
-    createdAt: new Date('2024-06-08'),
-  },
-  {
-    id: '3',
-    userId: '2',
-    userName: 'Sarah Manager',
-    userRole: 'manager',
-    type: 'annual',
-    startDate: new Date('2024-07-01'),
-    endDate: new Date('2024-07-05'),
-    reason: 'Family vacation',
-    status: 'pending',
-    createdAt: new Date('2024-06-10'),
-  },
-];
+export const mockLeaves: Leave[] = [];
 
-export const mockActivities: ActivityLog[] = [
-  {
-    id: '1',
-    userId: '3',
-    userName: 'Mike Staff',
-    action: 'created',
-    module: 'leads',
-    details: 'Created new lead: Robert Johnson',
-    createdAt: new Date('2024-06-01T10:30:00'),
-  },
-  {
-    id: '2',
-    userId: '3',
-    userName: 'Mike Staff',
-    action: 'updated',
-    module: 'leads',
-    details: 'Updated lead status to Interested: Robert Johnson',
-    createdAt: new Date('2024-06-03T14:15:00'),
-  },
-  {
-    id: '3',
-    userId: '3',
-    userName: 'Mike Staff',
-    action: 'converted',
-    module: 'tasks',
-    details: 'Converted lead to task: Robert Johnson',
-    createdAt: new Date('2024-06-10T09:00:00'),
-  },
-  {
-    id: '4',
-    userId: '1',
-    userName: 'John Admin',
-    action: 'created',
-    module: 'projects',
-    details: 'Added new project: Metro Heights',
-    createdAt: new Date('2024-05-01T11:00:00'),
-  },
-  {
-    id: '5',
-    userId: '2',
-    userName: 'Sarah Manager',
-    action: 'approved',
-    module: 'leaves',
-    details: 'Approved leave request for Emma Wilson',
-    createdAt: new Date('2024-06-09T16:30:00'),
-  },
-];
+export const mockActivities: ActivityLog[] = [];
 
 export const demoCredentials = {
   admin: { userId: 'john_admin_001', password: 'admin123' },

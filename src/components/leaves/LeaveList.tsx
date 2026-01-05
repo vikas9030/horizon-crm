@@ -23,7 +23,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, Calendar, Check, X, FileText, ExternalLink, Loader2 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Search, Plus, Calendar, Check, X, FileText, ExternalLink, Loader2, Info } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -39,6 +44,7 @@ interface LeaveRecord {
   status: string;
   document_url: string | null;
   approved_by: string | null;
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -169,7 +175,8 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         .from('leaves')
         .update({ 
           status: 'rejected', 
-          approved_by: user.id 
+          approved_by: user.id,
+          rejection_reason: reason || null
         })
         .eq('id', leaveId);
 
@@ -180,7 +187,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
       }
 
       setLeaves(prev => prev.map(l => 
-        l.id === leaveId ? { ...l, status: 'rejected', approved_by: user.id } : l
+        l.id === leaveId ? { ...l, status: 'rejected', approved_by: user.id, rejection_reason: reason || null } : l
       ));
       toast.success(reason ? `Leave request rejected: ${reason}` : 'Leave request rejected');
     } catch (error) {
@@ -425,7 +432,20 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
                   )}
                 </TableCell>
                 <TableCell>
-                  <LeaveStatusChip status={leave.status as LeaveStatus} />
+                  <div className="flex items-center gap-2">
+                    <LeaveStatusChip status={leave.status as LeaveStatus} />
+                    {leave.status === 'rejected' && leave.rejection_reason && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-4 h-4 text-destructive cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-medium">Rejection Reason:</p>
+                          <p>{leave.rejection_reason}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </TableCell>
                 {canApprove && (
                   <TableCell>
