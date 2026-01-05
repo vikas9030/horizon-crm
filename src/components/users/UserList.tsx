@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { User } from '@/types';
-import { mockUsers } from '@/data/mockData';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import UserFormModal from './UserFormModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, MoreHorizontal, Edit, Key, UserX, Shield, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,65 +41,167 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { UserRole } from '@/types';
+
+interface DBUser {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  status: string;
+  manager_id: string | null;
+  created_at: string;
+  role?: UserRole;
+}
 
 export default function UserList() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const { createUser } = useAuth();
+  const [users, setUsers] = useState<DBUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<DBUser | null>(null);
+  const [deleteUser, setDeleteUser] = useState<DBUser | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const managers = users.filter(u => u.role === 'manager');
-  const existingUserIds = users.map(u => u.userId);
+
+  // Fetch users from database
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // Fetch roles for all users
+      const usersWithRoles: DBUser[] = [];
+      for (const profile of profiles || []) {
+        const { data: roleData } = await supabase.rpc('get_user_role', {
+          _user_id: profile.id
+        });
+        
+        if (roleData !== 'admin') { // Don't show admin in the list
+          usersWithRoles.push({
+            ...profile,
+            role: roleData as UserRole
+          });
+        }
+      }
+
+      setUsers(usersWithRoles);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.userId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.user_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     
-    return matchesSearch && matchesRole && user.role !== 'admin';
+    return matchesSearch && matchesRole;
   });
 
-  const handleSaveUser = (userData: Partial<User>) => {
-    if (editingUser) {
-      setUsers(prev => prev.map(u => 
-        u.id === editingUser.id ? { ...u, ...userData } as User : u
-      ));
-      toast.success('User updated successfully');
-    } else {
-      const newUser: User = {
-        ...userData as User,
-        id: String(Date.now()),
-        createdAt: new Date(),
-      };
-      setUsers(prev => [newUser, ...prev]);
-      toast.success(`User created successfully. Login ID: ${newUser.userId}`);
+  const handleSaveUser = async (userData: {
+    email: string;
+    password: string;
+    name: string;
+    phone: string;
+    address: string;
+    role: UserRole;
+    managerId?: string;
+  }) => {
+    try {
+      setIsSubmitting(true);
+      
+      const result = await createUser(
+        userData.email,
+        userData.password,
+        userData.name,
+        userData.phone,
+        userData.address,
+        userData.role,
+        userData.managerId
+      );
+
+      if (result.success) {
+        toast.success(`User created successfully! Login ID: ${result.userId}`);
+        await fetchUsers();
+        setIsFormOpen(false);
+        setEditingUser(null);
+      } else {
+        toast.error('Failed to create user', {
+          description: result.error
+        });
+      }
+    } catch (error: any) {
+      toast.error('Error creating user', {
+        description: error.message
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsFormOpen(false);
-    setEditingUser(null);
   };
 
-  const handleResetPassword = (user: User) => {
-    toast.success(`Password reset for ${user.name}. New temporary password sent.`);
+  const handleToggleStatus = async (user: DBUser) => {
+    try {
+      const newStatus = user.status === 'active' ? 'inactive' : 'active';
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.map(u => 
+        u.id === user.id ? { ...u, status: newStatus } : u
+      ));
+      
+      const action = user.status === 'active' ? 'disabled' : 'enabled';
+      toast.success(`${user.name}'s account has been ${action}`);
+    } catch (error: any) {
+      toast.error('Failed to update user status');
+    }
   };
 
-  const handleToggleStatus = (user: User) => {
-    setUsers(prev => prev.map(u => 
-      u.id === user.id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } as User : u
-    ));
-    const action = user.status === 'active' ? 'disabled' : 'enabled';
-    toast.success(`${user.name}'s account has been ${action}`);
-  };
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return;
+    
+    try {
+      // Delete via edge function to properly clean up auth user
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: deleteUser.id }
+      });
 
-  const handleDeleteUser = () => {
-    if (deleteUser) {
+      if (error) throw error;
+
       setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
       toast.success('User deleted successfully');
       setDeleteUser(null);
+    } catch (error: any) {
+      toast.error('Failed to delete user', {
+        description: error.message
+      });
     }
   };
 
@@ -114,11 +216,19 @@ export default function UserList() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-4 flex-1">
+        <div className="flex gap-4 flex-1 w-full sm:w-auto">
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -154,11 +264,10 @@ export default function UserList() {
             <TableRow className="hover:bg-transparent">
               <TableHead className="font-semibold">User</TableHead>
               <TableHead className="font-semibold">User ID</TableHead>
-              <TableHead className="font-semibold">Contact</TableHead>
+              <TableHead className="font-semibold hidden sm:table-cell">Contact</TableHead>
               <TableHead className="font-semibold">Role</TableHead>
-              <TableHead className="font-semibold">Permissions</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Joined</TableHead>
+              <TableHead className="font-semibold hidden md:table-cell">Joined</TableHead>
               <TableHead className="font-semibold w-20"></TableHead>
             </TableRow>
           </TableHeader>
@@ -182,33 +291,19 @@ export default function UserList() {
                 </TableCell>
                 <TableCell>
                   <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                    {user.userId}
+                    {user.user_id}
                   </code>
                 </TableCell>
-                <TableCell>
-                  <p className="text-sm text-muted-foreground">{user.phone}</p>
+                <TableCell className="hidden sm:table-cell">
+                  <p className="text-sm text-muted-foreground">{user.phone || '-'}</p>
                 </TableCell>
                 <TableCell>
                   <Badge 
                     variant="outline" 
-                    className={cn("capitalize", getRoleBadgeColor(user.role))}
+                    className={cn("capitalize", getRoleBadgeColor(user.role || ''))}
                   >
                     {user.role}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {user.permissions.slice(0, 3).map((perm) => (
-                      <Badge key={perm.module} variant="secondary" className="text-xs capitalize">
-                        {perm.module}
-                      </Badge>
-                    ))}
-                    {user.permissions.length > 3 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{user.permissions.length - 3}
-                      </Badge>
-                    )}
-                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge 
@@ -222,9 +317,9 @@ export default function UserList() {
                     {user.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden md:table-cell">
                   <p className="text-sm text-muted-foreground">
-                    {format(user.createdAt, 'MMM dd, yyyy')}
+                    {format(new Date(user.created_at), 'MMM dd, yyyy')}
                   </p>
                 </TableCell>
                 <TableCell>
@@ -235,25 +330,13 @@ export default function UserList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => { setEditingUser(user); setIsFormOpen(true); }}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit User
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setEditingUser(user); setIsFormOpen(true); }}>
-                        <Shield className="w-4 h-4 mr-2" />
-                        Edit Permissions
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleResetPassword(user)}>
-                        <Key className="w-4 h-4 mr-2" />
-                        Reset Password
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         onClick={() => handleToggleStatus(user)}
                       >
                         <UserX className="w-4 h-4 mr-2" />
                         {user.status === 'active' ? 'Disable Account' : 'Enable Account'}
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         className="text-destructive focus:text-destructive"
                         onClick={() => setDeleteUser(user)}
@@ -280,9 +363,8 @@ export default function UserList() {
         open={isFormOpen}
         onClose={() => { setIsFormOpen(false); setEditingUser(null); }}
         onSave={handleSaveUser}
-        user={editingUser}
-        managers={managers}
-        existingUserIds={existingUserIds}
+        managers={managers.map(m => ({ id: m.id, name: m.name }))}
+        isSubmitting={isSubmitting}
       />
 
       <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>

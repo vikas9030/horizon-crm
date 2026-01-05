@@ -1,54 +1,119 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, User, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Building2, User, Lock, Eye, EyeOff, ArrowRight, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { demoCredentials } from "@/data/mockData";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signupSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  address: z.string().min(5, "Please enter a valid address"),
+});
 
 export default function Login() {
-  const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [isSignupMode, setIsSignupMode] = useState(false);
+  const { login, signup, isAuthenticated, user, isLoading: authLoading, adminExists } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(`/${user.role}`);
+    }
+  }, [isAuthenticated, user, navigate]);
+
+  // Show signup mode if no admin exists
+  useEffect(() => {
+    if (adminExists === false) {
+      setIsSignupMode(true);
+    }
+  }, [adminExists]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const result = await login(userId, password);
+    try {
+      if (isSignupMode) {
+        // Validate signup
+        const validation = signupSchema.safeParse({ email, password, name, phone, address });
+        if (!validation.success) {
+          toast.error("Validation Error", {
+            description: validation.error.errors[0].message,
+          });
+          setIsLoading(false);
+          return;
+        }
 
-    if (result.success) {
-      toast.success("Welcome back!", {
-        description: "You have successfully logged in.",
-      });
+        const result = await signup(email, password, name, phone, address);
 
-      // Route based on role
-      if (userId === demoCredentials.admin.userId) {
-        navigate("/admin");
-      } else if (userId === demoCredentials.manager.userId) {
-        navigate("/manager");
+        if (result.success) {
+          toast.success("Account created!", {
+            description: "You are now logged in as admin.",
+          });
+          navigate("/admin");
+        } else {
+          toast.error("Signup failed", {
+            description: result.error,
+          });
+        }
       } else {
-        navigate("/staff");
+        // Validate login
+        const validation = loginSchema.safeParse({ email, password });
+        if (!validation.success) {
+          toast.error("Validation Error", {
+            description: validation.error.errors[0].message,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await login(email, password);
+
+        if (result.success) {
+          toast.success("Welcome back!", {
+            description: "You have successfully logged in.",
+          });
+        } else {
+          toast.error("Login failed", {
+            description: result.error,
+          });
+        }
       }
-    } else {
-      toast.error("Login failed", {
-        description: result.error,
+    } catch (error: any) {
+      toast.error("Error", {
+        description: error.message || "An error occurred",
       });
     }
 
     setIsLoading(false);
   };
 
-  const handleQuickLogin = (role: "admin" | "manager" | "staff") => {
-    const creds = demoCredentials[role];
-    setUserId(creds.userId);
-    setPassword(creds.password);
-  };
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -99,34 +164,98 @@ export default function Login() {
         />
       </div>
 
-      {/* Right Panel - Login Form */}
+      {/* Right Panel - Login/Signup Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md animate-scale-in">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
               <Building2 className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-foreground">PropertyCRM</span>
+            <span className="text-2xl font-bold text-foreground">ESWARI CRM</span>
           </div>
 
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2">Welcome Back</h2>
-            <p className="text-muted-foreground">Sign in to continue to your dashboard</p>
+            <h2 className="text-3xl font-bold text-foreground mb-2">
+              {isSignupMode ? (adminExists === false ? "Create Admin Account" : "Sign Up") : "Welcome Back"}
+            </h2>
+            <p className="text-muted-foreground">
+              {isSignupMode 
+                ? (adminExists === false ? "Set up your admin account to get started" : "Create your account")
+                : "Sign in to continue to your dashboard"}
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignupMode && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-foreground">
+                    Full Name
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-12 h-12 input-field"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-foreground">
+                    Phone
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="pl-12 h-12 input-field"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-foreground">
+                    Address
+                  </Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="address"
+                      type="text"
+                      placeholder="Enter your address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="pl-12 h-12 input-field"
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="userId" className="text-foreground">
-                User ID
+              <Label htmlFor="email" className="text-foreground">
+                Email
               </Label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
-                  id="userId"
-                  type="text"
-                  placeholder="Enter your User ID"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-12 h-12 input-field"
                   required
                 />
@@ -158,64 +287,33 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded border-border" />
-                <span className="text-sm text-muted-foreground">Remember me</span>
-              </label>
-              <button type="button" className="text-sm text-primary hover:underline">
-                Forgot password?
-              </button>
-            </div>
-
             <Button type="submit" className="w-full h-12 btn-primary text-base font-medium" disabled={isLoading}>
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in...
+                  {isSignupMode ? "Creating account..." : "Signing in..."}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  Sign In
+                  {isSignupMode ? "Create Account" : "Sign In"}
                   <ArrowRight className="w-5 h-5" />
                 </div>
               )}
             </Button>
           </form>
 
-          {/* Demo Accounts */}
-          <div className="mt-8 p-6 glass-card rounded-2xl">
-            <p className="text-sm text-muted-foreground text-center mb-4">Quick login for demo:</p>
-            <div className="grid grid-cols-3 gap-3">
-              <Button
+          {/* Toggle mode (only if admin exists) */}
+          {adminExists !== false && (
+            <div className="mt-6 text-center">
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickLogin("admin")}
-                className="text-xs"
+                onClick={() => setIsSignupMode(!isSignupMode)}
+                className="text-sm text-primary hover:underline"
               >
-                Admin
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickLogin("manager")}
-                className="text-xs"
-              >
-                Manager
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickLogin("staff")}
-                className="text-xs"
-              >
-                Staff
-              </Button>
+                {isSignupMode ? "Already have an account? Sign in" : "Don't have an account? Contact admin"}
+              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
