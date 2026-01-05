@@ -1,41 +1,255 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Announcement, Lead, Project, Task } from '@/types';
-import { mockAnnouncements, mockLeads, mockProjects, mockTasks } from '@/data/mockData';
 import { useNotifications } from './NotificationContext';
-import { useAuth } from './AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface DataContextType {
   leads: Lead[];
   tasks: Task[];
   projects: Project[];
   announcements: Announcement[];
-  addLead: (lead: Lead) => void;
-  updateLead: (id: string, data: Partial<Lead>) => void;
-  deleteLead: (id: string) => void;
-  addTask: (task: Task) => void;
-  updateTask: (id: string, data: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  addProject: (project: Project) => void;
-  updateProject: (id: string, data: Partial<Project>) => void;
-  addAnnouncement: (announcement: Announcement) => void;
-  deleteAnnouncement: (id: string) => void;
-  toggleAnnouncementActive: (id: string) => void;
+  loading: boolean;
+  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
+  deleteLead: (id: string) => Promise<void>;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateTask: (id: string, data: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<void>;
+  updateProject: (id: string, data: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt'>) => Promise<void>;
+  deleteAnnouncement: (id: string) => Promise<void>;
+  toggleAnnouncementActive: (id: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+// Helper to convert DB row to Lead type
+const dbToLead = (row: any, projects: Project[]): Lead => ({
+  id: row.id,
+  name: row.name,
+  phone: row.phone,
+  email: row.email,
+  address: row.address || '',
+  requirementType: row.requirement_type,
+  bhkRequirement: row.bhk_requirement,
+  budgetMin: Number(row.budget_min),
+  budgetMax: Number(row.budget_max),
+  description: row.description || '',
+  preferredLocation: row.preferred_location,
+  source: row.source,
+  status: row.status,
+  followUpDate: row.follow_up_date ? new Date(row.follow_up_date) : undefined,
+  notes: row.notes || [],
+  createdBy: row.created_by,
+  assignedProject: row.assigned_project,
+  createdAt: new Date(row.created_at),
+  updatedAt: new Date(row.updated_at),
+});
+
+// Helper to convert DB row to Task type
+const dbToTask = (row: any, leads: Lead[]): Task => {
+  const lead = leads.find(l => l.id === row.lead_id);
+  return {
+    id: row.id,
+    leadId: row.lead_id,
+    lead: lead || {
+      id: row.lead_id,
+      name: 'Unknown',
+      phone: '',
+      email: '',
+      address: '',
+      requirementType: 'apartment',
+      bhkRequirement: '2',
+      budgetMin: 0,
+      budgetMax: 0,
+      description: '',
+      status: 'pending',
+      notes: [],
+      createdBy: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    status: row.status,
+    nextActionDate: row.next_action_date ? new Date(row.next_action_date) : undefined,
+    notes: row.notes || [],
+    attachments: row.attachments || [],
+    assignedTo: row.assigned_to,
+    assignedProject: row.assigned_project,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  };
+};
+
+// Helper to convert DB row to Project type
+const dbToProject = (row: any): Project => ({
+  id: row.id,
+  name: row.name,
+  location: row.location,
+  type: row.type,
+  priceMin: Number(row.price_min),
+  priceMax: Number(row.price_max),
+  launchDate: new Date(row.launch_date),
+  possessionDate: new Date(row.possession_date),
+  amenities: row.amenities || [],
+  description: row.description || '',
+  towerDetails: row.tower_details,
+  nearbyLandmarks: row.nearby_landmarks || [],
+  photos: row.photos || [],
+  coverImage: row.cover_image || '',
+  status: row.status,
+  createdAt: new Date(row.created_at),
+});
+
+// Helper to convert DB row to Announcement type
+const dbToAnnouncement = (row: any): Announcement => ({
+  id: row.id,
+  title: row.title,
+  message: row.message,
+  priority: row.priority,
+  targetRoles: row.target_roles || ['manager', 'staff'],
+  createdBy: row.created_by,
+  createdAt: new Date(row.created_at),
+  expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
+  isActive: row.is_active,
+});
+
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Get notification functions from context if available
   const notificationContext = useNotifications();
 
-  const addLead = useCallback((lead: Lead) => {
-    setLeads(prev => [lead, ...prev]);
-    // Add notification for new lead
+  const fetchProjects = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching projects:', error);
+      return [];
+    }
+    
+    const projectsList = (data || []).map(dbToProject);
+    setProjects(projectsList);
+    return projectsList;
+  }, []);
+
+  const fetchLeads = useCallback(async (projectsList: Project[]) => {
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching leads:', error);
+      return [];
+    }
+    
+    const leadsList = (data || []).map(row => dbToLead(row, projectsList));
+    setLeads(leadsList);
+    return leadsList;
+  }, []);
+
+  const fetchTasks = useCallback(async (leadsList: Lead[]) => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching tasks:', error);
+      return [];
+    }
+    
+    const tasksList = (data || []).map(row => dbToTask(row, leadsList));
+    setTasks(tasksList);
+    return tasksList;
+  }, []);
+
+  const fetchAnnouncements = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching announcements:', error);
+      return [];
+    }
+    
+    const announcementsList = (data || []).map(dbToAnnouncement);
+    setAnnouncements(announcementsList);
+    return announcementsList;
+  }, []);
+
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const projectsList = await fetchProjects();
+      const leadsList = await fetchLeads(projectsList);
+      await fetchTasks(leadsList);
+      await fetchAnnouncements();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchProjects, fetchLeads, fetchTasks, fetchAnnouncements]);
+
+  // Initial fetch
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    const channel = supabase
+      .channel('data-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => refreshData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshData]);
+
+  const addLead = useCallback(async (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { error } = await supabase.from('leads').insert([{
+      name: lead.name,
+      phone: lead.phone,
+      email: lead.email,
+      address: lead.address,
+      requirement_type: lead.requirementType,
+      bhk_requirement: lead.bhkRequirement,
+      budget_min: lead.budgetMin,
+      budget_max: lead.budgetMax,
+      description: lead.description,
+      preferred_location: lead.preferredLocation,
+      source: lead.source,
+      status: lead.status,
+      follow_up_date: lead.followUpDate?.toISOString(),
+      notes: lead.notes as any,
+      created_by: lead.createdBy,
+      assigned_project: lead.assignedProject,
+    }]);
+
+    if (error) {
+      console.error('Error adding lead:', error);
+      toast.error('Failed to add lead');
+      throw error;
+    }
+
     if (notificationContext?.addNotification) {
       notificationContext.addNotification({
         title: 'New Lead Created',
@@ -46,46 +260,177 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [notificationContext]);
 
-  const updateLead = useCallback((id: string, data: Partial<Lead>) => {
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data, updatedAt: new Date() } : l));
+  const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.requirementType !== undefined) updateData.requirement_type = data.requirementType;
+    if (data.bhkRequirement !== undefined) updateData.bhk_requirement = data.bhkRequirement;
+    if (data.budgetMin !== undefined) updateData.budget_min = data.budgetMin;
+    if (data.budgetMax !== undefined) updateData.budget_max = data.budgetMax;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.preferredLocation !== undefined) updateData.preferred_location = data.preferredLocation;
+    if (data.source !== undefined) updateData.source = data.source;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.followUpDate !== undefined) updateData.follow_up_date = data.followUpDate?.toISOString();
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.assignedProject !== undefined) updateData.assigned_project = data.assignedProject;
+
+    const { error } = await supabase.from('leads').update(updateData).eq('id', id);
+
+    if (error) {
+      console.error('Error updating lead:', error);
+      toast.error('Failed to update lead');
+      throw error;
+    }
   }, []);
 
-  const deleteLead = useCallback((id: string) => {
-    setLeads(prev => prev.filter(l => l.id !== id));
+  const deleteLead = useCallback(async (id: string) => {
+    const { error } = await supabase.from('leads').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting lead:', error);
+      toast.error('Failed to delete lead');
+      throw error;
+    }
   }, []);
 
-  const addTask = useCallback((task: Task) => {
-    setTasks(prev => [task, ...prev]);
-    // Add notification for new task
+  const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { error } = await supabase.from('tasks').insert([{
+      lead_id: task.leadId,
+      status: task.status,
+      next_action_date: task.nextActionDate?.toISOString(),
+      notes: task.notes as any,
+      attachments: task.attachments as any,
+      assigned_to: task.assignedTo,
+      assigned_project: task.assignedProject,
+    }]);
+
+    if (error) {
+      console.error('Error adding task:', error);
+      toast.error('Failed to add task');
+      throw error;
+    }
+
     if (notificationContext?.addNotification) {
       notificationContext.addNotification({
         title: 'New Task Created',
-        message: `Task for "${task.lead.name}" has been created`,
+        message: `Task for "${task.lead?.name || 'lead'}" has been created`,
         type: 'task',
         createdAt: new Date(),
       });
     }
   }, [notificationContext]);
 
-  const updateTask = useCallback((id: string, data: Partial<Task>) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data, updatedAt: new Date() } : t));
+  const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
+    const updateData: any = {};
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.nextActionDate !== undefined) updateData.next_action_date = data.nextActionDate?.toISOString();
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.attachments !== undefined) updateData.attachments = data.attachments;
+    if (data.assignedTo !== undefined) updateData.assigned_to = data.assignedTo;
+    if (data.assignedProject !== undefined) updateData.assigned_project = data.assignedProject;
+
+    const { error } = await supabase.from('tasks').update(updateData).eq('id', id);
+
+    if (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+      throw error;
+    }
   }, []);
 
-  const deleteTask = useCallback((id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+  const deleteTask = useCallback(async (id: string) => {
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+      throw error;
+    }
   }, []);
 
-  const addProject = useCallback((project: Project) => {
-    setProjects(prev => [project, ...prev]);
+  const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt'>) => {
+    const { error } = await supabase.from('projects').insert([{
+      name: project.name,
+      location: project.location,
+      type: project.type,
+      price_min: project.priceMin,
+      price_max: project.priceMax,
+      launch_date: project.launchDate.toISOString().split('T')[0],
+      possession_date: project.possessionDate.toISOString().split('T')[0],
+      amenities: project.amenities as any,
+      description: project.description,
+      tower_details: project.towerDetails,
+      nearby_landmarks: project.nearbyLandmarks as any,
+      photos: project.photos as any,
+      cover_image: project.coverImage,
+      status: project.status,
+      created_by: (project as any).createdBy || 'system',
+    }]);
+
+    if (error) {
+      console.error('Error adding project:', error);
+      toast.error('Failed to add project');
+      throw error;
+    }
   }, []);
 
-  const updateProject = useCallback((id: string, data: Partial<Project>) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+  const updateProject = useCallback(async (id: string, data: Partial<Project>) => {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.location !== undefined) updateData.location = data.location;
+    if (data.type !== undefined) updateData.type = data.type;
+    if (data.priceMin !== undefined) updateData.price_min = data.priceMin;
+    if (data.priceMax !== undefined) updateData.price_max = data.priceMax;
+    if (data.launchDate !== undefined) updateData.launch_date = data.launchDate.toISOString().split('T')[0];
+    if (data.possessionDate !== undefined) updateData.possession_date = data.possessionDate.toISOString().split('T')[0];
+    if (data.amenities !== undefined) updateData.amenities = data.amenities;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.towerDetails !== undefined) updateData.tower_details = data.towerDetails;
+    if (data.nearbyLandmarks !== undefined) updateData.nearby_landmarks = data.nearbyLandmarks;
+    if (data.photos !== undefined) updateData.photos = data.photos;
+    if (data.coverImage !== undefined) updateData.cover_image = data.coverImage;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    const { error } = await supabase.from('projects').update(updateData).eq('id', id);
+
+    if (error) {
+      console.error('Error updating project:', error);
+      toast.error('Failed to update project');
+      throw error;
+    }
   }, []);
 
-  const addAnnouncement = useCallback((announcement: Announcement) => {
-    setAnnouncements(prev => [announcement, ...prev]);
-    // Add notification for new announcement
+  const deleteProject = useCallback(async (id: string) => {
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Failed to delete project');
+      throw error;
+    }
+  }, []);
+
+  const addAnnouncement = useCallback(async (announcement: Omit<Announcement, 'id' | 'createdAt'>) => {
+    const { error } = await supabase.from('announcements').insert([{
+      title: announcement.title,
+      message: announcement.message,
+      priority: announcement.priority,
+      target_roles: announcement.targetRoles as any,
+      created_by: announcement.createdBy,
+      expires_at: announcement.expiresAt?.toISOString(),
+      is_active: announcement.isActive,
+    }]);
+
+    if (error) {
+      console.error('Error adding announcement:', error);
+      toast.error('Failed to add announcement');
+      throw error;
+    }
+
     if (notificationContext?.addNotification) {
       notificationContext.addNotification({
         title: 'New Announcement',
@@ -96,19 +441,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [notificationContext]);
 
-  const deleteAnnouncement = useCallback((id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
+  const deleteAnnouncement = useCallback(async (id: string) => {
+    const { error } = await supabase.from('announcements').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting announcement:', error);
+      toast.error('Failed to delete announcement');
+      throw error;
+    }
   }, []);
 
-  const toggleAnnouncementActive = useCallback((id: string) => {
-    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, isActive: !a.isActive } : a));
-  }, []);
+  const toggleAnnouncementActive = useCallback(async (id: string) => {
+    const announcement = announcements.find(a => a.id === id);
+    if (!announcement) return;
 
-  const value = useMemo(() => ({
+    const { error } = await supabase
+      .from('announcements')
+      .update({ is_active: !announcement.isActive })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error toggling announcement:', error);
+      toast.error('Failed to update announcement');
+      throw error;
+    }
+  }, [announcements]);
+
+  const value = {
     leads,
     tasks,
     projects,
     announcements,
+    loading,
     addLead,
     updateLead,
     deleteLead,
@@ -117,10 +481,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     deleteTask,
     addProject,
     updateProject,
+    deleteProject,
     addAnnouncement,
     deleteAnnouncement,
     toggleAnnouncementActive,
-  }), [leads, tasks, projects, announcements, addLead, updateLead, deleteLead, addTask, updateTask, deleteTask, addProject, updateProject, addAnnouncement, deleteAnnouncement, toggleAnnouncementActive]);
+    refreshData,
+  };
 
   return (
     <DataContext.Provider value={value}>

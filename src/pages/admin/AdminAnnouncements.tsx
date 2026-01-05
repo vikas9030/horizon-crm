@@ -9,16 +9,34 @@ export default function AdminAnnouncements() {
   const { user } = useAuth();
   const { announcements, addAnnouncement, deleteAnnouncement, toggleAnnouncementActive } = useData();
 
-  const handleAdd = (data: Omit<Announcement, "id" | "createdAt" | "createdBy">) => {
-    const newAnnouncement: Announcement = {
-      ...data,
-      id: Date.now().toString(),
-      createdBy: user?.id || "1",
-      createdAt: new Date(),
-    };
+  const handleAdd = async (data: Omit<Announcement, "id" | "createdAt" | "createdBy">) => {
+    try {
+      await addAnnouncement({
+        ...data,
+        createdBy: user?.id || "1",
+      });
+      toast.success("Announcement created");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
+  };
 
-    addAnnouncement(newAnnouncement);
-    toast.success("Announcement created");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAnnouncement(id);
+      toast.success("Announcement deleted");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
+  };
+
+  const handleToggle = async (id: string) => {
+    try {
+      await toggleAnnouncementActive(id);
+      toast.success("Announcement updated");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
   };
 
   return (
@@ -28,8 +46,8 @@ export default function AdminAnnouncements() {
         <AnnouncementList
           announcements={announcements}
           onAdd={handleAdd}
-          onDelete={deleteAnnouncement}
-          onToggleActive={toggleAnnouncementActive}
+          onDelete={handleDelete}
+          onToggleActive={handleToggle}
         />
       </div>
     </div>

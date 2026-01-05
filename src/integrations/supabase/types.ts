@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          priority: string
+          target_roles: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          priority?: string
+          target_roles?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          priority?: string
+          target_roles?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           accent_color: string
@@ -52,6 +91,80 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      leads: {
+        Row: {
+          address: string | null
+          assigned_project: string | null
+          bhk_requirement: string
+          budget_max: number
+          budget_min: number
+          created_at: string
+          created_by: string
+          description: string | null
+          email: string
+          follow_up_date: string | null
+          id: string
+          name: string
+          notes: Json | null
+          phone: string
+          preferred_location: string | null
+          requirement_type: string
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          assigned_project?: string | null
+          bhk_requirement: string
+          budget_max: number
+          budget_min: number
+          created_at?: string
+          created_by: string
+          description?: string | null
+          email: string
+          follow_up_date?: string | null
+          id?: string
+          name: string
+          notes?: Json | null
+          phone: string
+          preferred_location?: string | null
+          requirement_type: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          assigned_project?: string | null
+          bhk_requirement?: string
+          budget_max?: number
+          budget_min?: number
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          email?: string
+          follow_up_date?: string | null
+          id?: string
+          name?: string
+          notes?: Json | null
+          phone?: string
+          preferred_location?: string | null
+          requirement_type?: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_assigned_project_fkey"
+            columns: ["assigned_project"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leaves: {
         Row: {
@@ -147,6 +260,123 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          amenities: Json | null
+          cover_image: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          launch_date: string
+          location: string
+          name: string
+          nearby_landmarks: Json | null
+          photos: Json | null
+          possession_date: string
+          price_max: number
+          price_min: number
+          status: string
+          tower_details: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amenities?: Json | null
+          cover_image?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          launch_date: string
+          location: string
+          name: string
+          nearby_landmarks?: Json | null
+          photos?: Json | null
+          possession_date: string
+          price_max: number
+          price_min: number
+          status?: string
+          tower_details?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amenities?: Json | null
+          cover_image?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          launch_date?: string
+          location?: string
+          name?: string
+          nearby_landmarks?: Json | null
+          photos?: Json | null
+          possession_date?: string
+          price_max?: number
+          price_min?: number
+          status?: string
+          tower_details?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_project: string | null
+          assigned_to: string
+          attachments: Json | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          next_action_date: string | null
+          notes: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_project?: string | null
+          assigned_to: string
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          next_action_date?: string | null
+          notes?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_project?: string | null
+          assigned_to?: string
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          next_action_date?: string | null
+          notes?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_project_fkey"
+            columns: ["assigned_project"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]

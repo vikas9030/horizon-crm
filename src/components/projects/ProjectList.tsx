@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { mockProjects } from '@/data/mockData';
 import { Project } from '@/types';
 import ProjectCard from './ProjectCard';
 import ProjectFormModal from './ProjectFormModal';
@@ -13,8 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Plus, LayoutGrid, List } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProjectListProps {
   canCreate?: boolean;
@@ -24,13 +25,15 @@ interface ProjectListProps {
 const locations = ['Vizag', 'Gajuwaka', 'Kakinada', 'Rajamundry', 'Vijayawada'];
 
 export default function ProjectList({ canCreate = false, canEdit = false }: ProjectListProps) {
+  const { user } = useAuth();
+  const { projects, loading, addProject, updateProject } = useData();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [viewingProject, setViewingProject] = useState<Project | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
@@ -46,23 +49,27 @@ export default function ProjectList({ canCreate = false, canEdit = false }: Proj
     return matchesSearch && matchesStatus && matchesType && matchesLocation;
   });
 
-  const handleAddProject = (projectData: Omit<Project, 'id' | 'createdAt'>) => {
-    const newProject: Project = {
-      ...projectData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-    };
-    setProjects([newProject, ...projects]);
-    toast.success('Project added successfully!');
+  const handleAddProject = async (projectData: Omit<Project, 'id' | 'createdAt'>) => {
+    try {
+      await addProject({
+        ...projectData,
+        createdBy: user?.id || 'system',
+      } as any);
+      toast.success('Project added successfully!');
+    } catch (error) {
+      // Error already shown by DataContext
+    }
   };
 
-  const handleEditProject = (projectData: Omit<Project, 'id' | 'createdAt'>) => {
+  const handleEditProject = async (projectData: Omit<Project, 'id' | 'createdAt'>) => {
     if (editingProject) {
-      setProjects(prev => prev.map(p => 
-        p.id === editingProject.id ? { ...p, ...projectData } : p
-      ));
-      toast.success('Project updated successfully!');
-      setEditingProject(null);
+      try {
+        await updateProject(editingProject.id, projectData);
+        toast.success('Project updated successfully!');
+        setEditingProject(null);
+      } catch (error) {
+        // Error already shown by DataContext
+      }
     }
   };
 
@@ -74,6 +81,14 @@ export default function ProjectList({ canCreate = false, canEdit = false }: Proj
     setEditingProject(project);
     setIsFormOpen(true);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">

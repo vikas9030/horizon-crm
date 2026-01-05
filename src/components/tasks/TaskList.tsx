@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Task, TaskStatus, Lead } from "@/types";
-import { mockProjects } from "@/data/mockData";
 import TaskStatusChip from "./TaskStatusChip";
 import TaskFormModal from "./TaskFormModal";
 import TaskExcelImportExport from "./TaskExcelImportExport";
@@ -44,7 +43,7 @@ interface TaskListProps {
 
 export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false }: TaskListProps) {
   const { user } = useAuth();
-  const { tasks, leads, addTask, updateTask } = useData();
+  const { tasks, leads, projects, addTask, updateTask } = useData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -77,9 +76,13 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
     });
   }, [tasks, searchQuery, statusFilter, projectFilter, dateRange]);
 
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    updateTask(taskId, { status: newStatus, updatedAt: new Date() });
-    toast.success("Task status updated");
+  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+    try {
+      await updateTask(taskId, { status: newStatus });
+      toast.success("Task status updated");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -87,30 +90,30 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
     setIsFormOpen(true);
   };
 
-  const handleSaveTask = (updatedTask: Partial<Task>) => {
-    if (editingTask) {
-      updateTask(editingTask.id, { ...updatedTask, updatedAt: new Date() });
-      toast.success("Task updated successfully");
-    } else if (isCreating && updatedTask.lead) {
-      const newTask: Task = {
-        id: String(Date.now()),
-        leadId: updatedTask.lead.id,
-        lead: updatedTask.lead,
-        status: updatedTask.status || "pending",
-        nextActionDate: updatedTask.nextActionDate,
-        notes: updatedTask.notes || [],
-        attachments: updatedTask.attachments || [],
-        assignedTo: updatedTask.assignedTo || user?.id || "unknown",
-        assignedProject: updatedTask.assignedProject,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      addTask(newTask);
-      toast.success("Task created successfully");
+  const handleSaveTask = async (updatedTask: Partial<Task>) => {
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, updatedTask);
+        toast.success("Task updated successfully");
+      } else if (isCreating && updatedTask.lead) {
+        await addTask({
+          leadId: updatedTask.lead.id,
+          lead: updatedTask.lead,
+          status: updatedTask.status || "pending",
+          nextActionDate: updatedTask.nextActionDate,
+          notes: updatedTask.notes || [],
+          attachments: updatedTask.attachments || [],
+          assignedTo: updatedTask.assignedTo || user?.id || "unknown",
+          assignedProject: updatedTask.assignedProject,
+        });
+        toast.success("Task created successfully");
+      }
+      setIsFormOpen(false);
+      setEditingTask(null);
+      setIsCreating(false);
+    } catch (error) {
+      // Error already shown by DataContext
     }
-    setIsFormOpen(false);
-    setEditingTask(null);
-    setIsCreating(false);
   };
 
   const handleAddTask = () => {
@@ -119,30 +122,29 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
     setIsFormOpen(true);
   };
 
-  const handleImportTasks = (importedTasks: Partial<Task>[]) => {
-    importedTasks.forEach((taskData, index) => {
-      if (!taskData.lead) return;
-
-      const newTask: Task = {
-        id: String(Date.now() + index),
-        leadId: taskData.lead.id,
-        lead: taskData.lead as Lead,
-        status: taskData.status || "pending",
-        nextActionDate: taskData.nextActionDate,
-        notes: taskData.notes || [],
-        attachments: taskData.attachments || [],
-        assignedTo: taskData.assignedTo || user?.id || "unknown",
-        assignedProject: taskData.assignedProject,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      addTask(newTask);
-    });
+  const handleImportTasks = async (importedTasks: Partial<Task>[]) => {
+    for (const taskData of importedTasks) {
+      if (!taskData.lead) continue;
+      try {
+        await addTask({
+          leadId: taskData.lead.id,
+          lead: taskData.lead as Lead,
+          status: taskData.status || "pending",
+          nextActionDate: taskData.nextActionDate,
+          notes: taskData.notes || [],
+          attachments: taskData.attachments || [],
+          assignedTo: taskData.assignedTo || user?.id || "unknown",
+          assignedProject: taskData.assignedProject,
+        });
+      } catch (error) {
+        // Continue with next task
+      }
+    }
   };
 
   const getProjectName = (projectId?: string) => {
     if (!projectId) return "-";
-    const project = mockProjects.find((p) => p.id === projectId);
+    const project = projects.find((p) => p.id === projectId);
     return project ? project.name : "-";
   };
 
@@ -182,7 +184,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {mockProjects.map((project) => (
+                {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
                   </SelectItem>

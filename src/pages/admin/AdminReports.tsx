@@ -3,7 +3,6 @@ import TopBar from "@/components/layout/TopBar";
 import StaffPerformanceChart from "@/components/reports/StaffPerformanceChart";
 import DailyLeadsPercentageChart from "@/components/reports/DailyLeadsPercentageChart";
 import MonthlyLeavesChart from "@/components/reports/MonthlyLeavesChart";
-import { mockUsers } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,13 @@ interface LeaveRecord {
   created_at: string;
 }
 
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string | null;
+  role: 'manager' | 'staff';
+}
+
 type DateRange = {
   from: Date | undefined;
   to: Date | undefined;
@@ -38,6 +44,7 @@ type DateRange = {
 export default function AdminReports() {
   const { leads, tasks } = useData();
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [userSearchOpen, setUserSearchOpen] = useState(false);
@@ -45,23 +52,47 @@ export default function AdminReports() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   useEffect(() => {
-    fetchLeaves();
+    const fetchData = async () => {
+      try {
+        // Fetch leaves
+        const { data: leavesData, error: leavesError } = await supabase
+          .from("leaves")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (leavesError) throw leavesError;
+        setLeaves(leavesData || []);
+
+        // Fetch team members
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name, email');
+        
+        if (profilesData) {
+          const members: TeamMember[] = [];
+          for (const profile of profilesData) {
+            const { data: roleData } = await supabase.rpc('get_user_role', {
+              _user_id: profile.id
+            });
+            if (roleData === 'manager' || roleData === 'staff') {
+              members.push({
+                ...profile,
+                role: roleData as 'manager' | 'staff'
+              });
+            }
+          }
+          setTeamMembers(members);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const fetchLeaves = async () => {
-    try {
-      const { data, error } = await supabase.from("leaves").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      setLeaves(data || []);
-    } catch (error) {
-      console.error("Error fetching leaves:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const allTeamMembers = mockUsers.filter((u) => u.role === "manager" || u.role === "staff");
-
+  const allTeamMembers = teamMembers;
   const filteredUsers = selectedUserId === "all" ? allTeamMembers : allTeamMembers.filter((u) => u.id === selectedUserId);
 
   const filteredLeads = useMemo(() => {
@@ -286,7 +317,7 @@ export default function AdminReports() {
               <p className="text-2xl font-bold">{filteredUsers.length}</p>
               <p className="text-xs text-muted-foreground">
                 {selectedUserId === "all"
-                  ? `${mockUsers.filter((u) => u.role === "manager").length} managers, ${mockUsers.filter((u) => u.role === "staff").length} staff`
+                  ? `${teamMembers.filter((u) => u.role === "manager").length} managers, ${teamMembers.filter((u) => u.role === "staff").length} staff`
                   : selectedUser?.role}
               </p>
             </CardContent>
