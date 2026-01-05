@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Task, TaskStatus, Lead } from "@/types";
 import TaskStatusChip from "./TaskStatusChip";
 import TaskFormModal from "./TaskFormModal";
+import TaskDetailsModal from "./TaskDetailsModal";
 import TaskExcelImportExport from "./TaskExcelImportExport";
 import StaffProfileChip from "@/components/common/StaffProfileChip";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -276,20 +278,20 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1">
-                <Eye className="w-3.5 h-3.5 mr-1" />
-                View
-              </Button>
-              {canEdit && (
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditTask(task)}>
-                  <Edit className="w-3.5 h-3.5 mr-1" />
-                  Edit
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingTask(task)}>
+            <Eye className="w-3.5 h-3.5 mr-1" />
+            View
+          </Button>
+          {canEdit && (
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditTask(task)}>
+              <Edit className="w-3.5 h-3.5 mr-1" />
+              Edit
+            </Button>
+          )}
+        </div>
       </div>
+    ))}
+  </div>
 
       {/* Desktop Table View */}
       <div className="glass-card rounded-2xl overflow-hidden hidden md:block">
@@ -385,20 +387,20 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </DropdownMenuItem>
-                      {canEdit && (
-                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Task
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setViewingTask(task)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Details
+                  </DropdownMenuItem>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Task
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -411,19 +413,34 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         </div>
       )}
 
-      <TaskFormModal
-        open={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingTask(null);
-          setIsCreating(false);
-        }}
-        onSave={handleSaveTask}
-        task={editingTask}
-        isCreating={isCreating}
-        availableLeads={leads}
-        projects={projects}
-      />
-    </div>
-  );
+    <TaskFormModal
+      open={isFormOpen}
+      onClose={() => {
+        setIsFormOpen(false);
+        setEditingTask(null);
+        setIsCreating(false);
+      }}
+      onSave={handleSaveTask}
+      task={editingTask}
+      isCreating={isCreating}
+      availableLeads={leads}
+      projects={projects}
+    />
+
+    <TaskDetailsModal
+      open={!!viewingTask}
+      onClose={() => setViewingTask(null)}
+      task={viewingTask}
+      isManagerView={isManagerView}
+      canEdit={canEdit}
+      onEdit={() => {
+        if (viewingTask) {
+          handleEditTask(viewingTask);
+          setViewingTask(null);
+        }
+      }}
+      getProjectName={getProjectName}
+    />
+  </div>
+);
 }

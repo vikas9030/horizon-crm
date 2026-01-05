@@ -30,7 +30,6 @@ import ManagerLeads from "@/pages/manager/ManagerLeads";
 import ManagerTasks from "@/pages/manager/ManagerTasks";
 import ManagerLeaves from "@/pages/manager/ManagerLeaves";
 import ManagerProjects from "@/pages/manager/ManagerProjects";
-import ManagerReports from "@/pages/manager/ManagerReports";
 import ManagerAnnouncements from "@/pages/manager/ManagerAnnouncements";
 
 // Staff Pages
@@ -85,7 +84,6 @@ const App = () => (
                   <Route path="tasks" element={<ManagerTasks />} />
                   <Route path="projects" element={<ManagerProjects />} />
                   <Route path="leaves" element={<ManagerLeaves />} />
-                  <Route path="reports" element={<ManagerReports />} />
                   <Route path="announcements" element={<ManagerAnnouncements />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
