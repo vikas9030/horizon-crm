@@ -3,6 +3,7 @@ import { Leave, LeaveStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { logActivity } from '@/lib/activityLogger';
 import LeaveStatusChip from './LeaveStatusChip';
 import LeaveFormModal from './LeaveFormModal';
 import LeaveRejectDialog from './LeaveRejectDialog';
@@ -175,13 +176,15 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
 
   const handleApprove = async (leaveId: string) => {
     if (!user) return;
-    
+
+    const target = leaves.find(l => l.id === leaveId);
+
     try {
       const { error } = await supabase
         .from('leaves')
-        .update({ 
-          status: 'approved', 
-          approved_by: user.id 
+        .update({
+          status: 'approved',
+          approved_by: user.id
         })
         .eq('id', leaveId);
 
@@ -191,9 +194,19 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         return;
       }
 
-      setLeaves(prev => prev.map(l => 
+      setLeaves(prev => prev.map(l =>
         l.id === leaveId ? { ...l, status: 'approved', approved_by: user.id } : l
       ));
+
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'leaves',
+        action: 'approved',
+        details: `approved leave for "${target?.user_name ?? 'employee'}"`,
+      });
+
       toast.success('Leave request approved');
     } catch (error) {
       console.error('Error approving leave:', error);
@@ -203,12 +216,14 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
 
   const handleReject = async (leaveId: string, reason?: string) => {
     if (!user) return;
-    
+
+    const target = leaves.find(l => l.id === leaveId);
+
     try {
       const { error } = await supabase
         .from('leaves')
-        .update({ 
-          status: 'rejected', 
+        .update({
+          status: 'rejected',
           approved_by: user.id,
           rejection_reason: reason || null
         })
@@ -220,9 +235,19 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         return;
       }
 
-      setLeaves(prev => prev.map(l => 
+      setLeaves(prev => prev.map(l =>
         l.id === leaveId ? { ...l, status: 'rejected', approved_by: user.id, rejection_reason: reason || null } : l
       ));
+
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'leaves',
+        action: 'rejected',
+        details: `rejected leave for "${target?.user_name ?? 'employee'}"`,
+      });
+
       toast.success(reason ? `Leave request rejected: ${reason}` : 'Leave request rejected');
     } catch (error) {
       console.error('Error rejecting leave:', error);
@@ -232,7 +257,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
 
   const handleCreateLeave = async (leaveData: Partial<Leave> & { documentUrl?: string }) => {
     if (!user) return;
-    
+
     try {
       const insertData = {
         user_id: user.id,
@@ -260,6 +285,16 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
 
       if (data) {
         setLeaves(prev => [data, ...prev]);
+
+        void logActivity({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          module: 'leaves',
+          action: 'created',
+          details: `created leave request (${insertData.leave_type})`,
+        });
+
         toast.success('Leave request submitted successfully');
         // Add notification for leave request
         addNotification({
