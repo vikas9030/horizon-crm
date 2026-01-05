@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +16,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -52,12 +54,15 @@ interface UserFormModalProps {
     address: string;
     role: UserRole;
     managerId?: string;
-  }) => void;
+  }) => Promise<{ success: boolean; userId?: string }>;
   managers?: { id: string; name: string }[];
   isSubmitting?: boolean;
 }
 
 export default function UserFormModal({ open, onClose, onSave, managers = [], isSubmitting = false }: UserFormModalProps) {
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -72,6 +77,12 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
   });
 
   const selectedRole = form.watch('role');
+  const nameValue = form.watch('name');
+
+  // Generate preview user_id
+  const previewUserId = nameValue 
+    ? `${nameValue.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}_${selectedRole}_XXXX`
+    : '';
 
   useEffect(() => {
     if (open) {
@@ -84,11 +95,13 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
         managerId: '',
         password: '',
       });
+      setCreatedUserId(null);
+      setCopied(false);
     }
   }, [open, form]);
 
-  const handleSubmit = (data: UserFormData) => {
-    onSave({
+  const handleSubmit = async (data: UserFormData) => {
+    const result = await onSave({
       email: data.email,
       password: data.password,
       name: data.name,
@@ -97,10 +110,86 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
       role: data.role as UserRole,
       managerId: data.managerId || undefined,
     });
+
+    if (result.success && result.userId) {
+      setCreatedUserId(result.userId);
+    }
   };
 
+  const handleCopyUserId = async () => {
+    if (createdUserId) {
+      await navigator.clipboard.writeText(createdUserId);
+      setCopied(true);
+      toast.success('User ID copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleClose = () => {
+    setCreatedUserId(null);
+    setCopied(false);
+    onClose();
+  };
+
+  // Show success screen after user creation
+  if (createdUserId) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-green-600">User Created Successfully!</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+                <Check className="w-8 h-8 text-green-600" />
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Share these login credentials with the user:
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-muted space-y-3">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">User ID (for login)</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 p-2 bg-background rounded border text-sm font-mono break-all">
+                    {createdUserId}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopyUserId}
+                  >
+                    {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <p className="text-sm mt-1">The password you set in the form</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-sm text-amber-800">
+                <strong>Important:</strong> Make sure to share these credentials securely with the user. They will need the User ID and password to log in.
+              </p>
+            </div>
+
+            <Button onClick={handleClose} className="w-full">
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
@@ -118,10 +207,20 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
                     <FormControl>
                       <Input placeholder="Enter full name" {...field} />
                     </FormControl>
+                    <FormDescription>
+                      This will be used to generate the User ID for login.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {previewUserId && (
+                <div className="p-3 rounded-lg bg-muted">
+                  <label className="text-xs font-medium text-muted-foreground">Generated User ID (Preview)</label>
+                  <p className="font-mono text-sm mt-1">{previewUserId}</p>
+                </div>
+              )}
 
               <FormField
                 control={form.control}
@@ -130,8 +229,11 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
                   <FormItem>
                     <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter email address (used for login)" {...field} />
+                      <Input type="email" placeholder="Enter email address" {...field} />
                     </FormControl>
+                    <FormDescription>
+                      Email is required for account creation but staff/managers will login with User ID.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -146,6 +248,9 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
                     <FormControl>
                       <Input type="password" placeholder="Enter password (min 6 characters)" {...field} />
                     </FormControl>
+                    <FormDescription>
+                      Share this password with the user for their first login.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -229,16 +334,15 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
               )}
 
               <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                <p className="text-sm font-medium">Default Permissions</p>
+                <p className="text-sm font-medium">Login Instructions</p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedRole === 'manager' 
-                    ? 'Managers can view leads, tasks, and approve leaves.'
-                    : 'Staff can view, create, and edit leads and tasks, and apply for leaves.'}
+                  After creating the user, share the <strong>User ID</strong> and <strong>Password</strong> with them. 
+                  They can login using the "Staff / Manager" tab on the login page.
                 </p>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
                 <Button type="submit" className="btn-accent" disabled={isSubmitting}>

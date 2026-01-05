@@ -7,9 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Building2, User, Lock, Eye, EyeOff, ArrowRight, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const loginSchema = z.object({
+const adminLoginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const staffLoginSchema = z.object({
+  userId: z.string().min(3, "Please enter your User ID"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -23,6 +29,7 @@ const signupSchema = z.object({
 
 export default function Login() {
   const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -30,7 +37,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSignupMode, setIsSignupMode] = useState(false);
-  const { login, signup, isAuthenticated, user, isLoading: authLoading, adminExists } = useAuth();
+  const [loginType, setLoginType] = useState<"admin" | "staff">("staff");
+  const { login, loginWithUserId, signup, isAuthenticated, user, isLoading: authLoading, adminExists } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -44,6 +52,7 @@ export default function Login() {
   useEffect(() => {
     if (adminExists === false) {
       setIsSignupMode(true);
+      setLoginType("admin");
     }
   }, [adminExists]);
 
@@ -75,9 +84,9 @@ export default function Login() {
             description: result.error,
           });
         }
-      } else {
-        // Validate login
-        const validation = loginSchema.safeParse({ email, password });
+      } else if (loginType === "admin") {
+        // Admin login with email
+        const validation = adminLoginSchema.safeParse({ email, password });
         if (!validation.success) {
           toast.error("Validation Error", {
             description: validation.error.errors[0].message,
@@ -87,6 +96,28 @@ export default function Login() {
         }
 
         const result = await login(email, password);
+
+        if (result.success) {
+          toast.success("Welcome back!", {
+            description: "You have successfully logged in.",
+          });
+        } else {
+          toast.error("Login failed", {
+            description: result.error,
+          });
+        }
+      } else {
+        // Staff/Manager login with User ID
+        const validation = staffLoginSchema.safeParse({ userId, password });
+        if (!validation.success) {
+          toast.error("Validation Error", {
+            description: validation.error.errors[0].message,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await loginWithUserId(userId, password);
 
         if (result.success) {
           toast.success("Welcome back!", {
@@ -176,14 +207,24 @@ export default function Login() {
 
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-foreground mb-2">
-              {isSignupMode ? (adminExists === false ? "Create Admin Account" : "Sign Up") : "Welcome Back"}
+              {isSignupMode ? "Create Admin Account" : "Welcome Back"}
             </h2>
             <p className="text-muted-foreground">
               {isSignupMode 
-                ? (adminExists === false ? "Set up your admin account to get started" : "Create your account")
+                ? "Set up your admin account to get started" 
                 : "Sign in to continue to your dashboard"}
             </p>
           </div>
+
+          {/* Login Type Tabs - Only show when not in signup mode and admin exists */}
+          {!isSignupMode && adminExists && (
+            <Tabs value={loginType} onValueChange={(v) => setLoginType(v as "admin" | "staff")} className="mb-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="staff">Staff / Manager</TabsTrigger>
+                <TabsTrigger value="admin">Admin</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignupMode && (
@@ -244,23 +285,50 @@ export default function Login() {
               </>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">
-                Email
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 h-12 input-field"
-                  required
-                />
+            {/* Email field - only for admin login and signup */}
+            {(isSignupMode || loginType === "admin") && (
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-foreground">
+                  Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-12 h-12 input-field"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* User ID field - only for staff/manager login */}
+            {!isSignupMode && loginType === "staff" && (
+              <div className="space-y-2">
+                <Label htmlFor="userId" className="text-foreground">
+                  User ID
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="userId"
+                    type="text"
+                    placeholder="Enter your User ID (e.g., john_doe_staff_1234)"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    className="pl-12 h-12 input-field"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your User ID was provided by your admin when your account was created.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground">
@@ -302,16 +370,13 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Toggle mode (only if admin exists) */}
-          {adminExists !== false && (
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignupMode(!isSignupMode)}
-                className="text-sm text-primary hover:underline"
-              >
-                {isSignupMode ? "Already have an account? Sign in" : "Don't have an account? Contact admin"}
-              </button>
+          {/* Help text for staff/manager */}
+          {!isSignupMode && loginType === "staff" && (
+            <div className="mt-6 p-4 rounded-lg bg-muted/50 text-sm">
+              <p className="font-medium mb-1">Need help logging in?</p>
+              <p className="text-muted-foreground">
+                Contact your admin to get your User ID and password. Your User ID is automatically generated when your account is created.
+              </p>
             </div>
           )}
         </div>

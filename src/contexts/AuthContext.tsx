@@ -35,6 +35,7 @@ interface AuthContextType {
   isLoading: boolean;
   adminExists: boolean | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithUserId: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (email: string, password: string, name: string, phone: string, address: string) => Promise<{ success: boolean; error?: string }>;
   createUser: (email: string, password: string, name: string, phone: string, address: string, role: UserRole, managerId?: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
   logout: () => Promise<void>;
@@ -135,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchUserData, checkAdminExists]);
 
+  // Admin login with email
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -144,6 +146,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        await fetchUserData(data.user);
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Login failed' };
+    }
+  }, [fetchUserData]);
+
+  // Staff/Manager login with User ID
+  const loginWithUserId = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // First, look up the email from the profiles table using user_id
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError || !profile?.email) {
+        return { success: false, error: 'User ID not found. Please check your User ID and try again.' };
+      }
+
+      // Now login with the email
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: 'Invalid password. Please try again.' };
       }
 
       if (data.user) {
@@ -239,15 +275,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (authError) {
+        console.error('Edge function error:', authError);
         return { success: false, error: authError.message };
       }
 
-      if (authData.error) {
+      if (authData?.error) {
         return { success: false, error: authData.error };
       }
 
-      return { success: true, userId: authData.userId };
+      return { success: true, userId: authData?.userId };
     } catch (error: any) {
+      console.error('Create user error:', error);
       return { success: false, error: error.message || 'Failed to create user' };
     }
   }, []);
@@ -298,6 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       adminExists,
       login, 
+      loginWithUserId,
       signup,
       createUser,
       logout, 
