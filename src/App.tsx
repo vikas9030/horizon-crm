@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { DataProvider } from "@/contexts/DataContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -21,6 +22,7 @@ import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminActivity from "@/pages/admin/AdminActivity";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminReports from "@/pages/admin/AdminReports";
+import AdminBranding from "@/pages/admin/AdminBranding";
 
 // Manager Pages
 import ManagerDashboard from "@/pages/manager/ManagerDashboard";
@@ -49,11 +51,12 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <NotificationProvider>
-        <DataProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
+      <AppSettingsProvider>
+        <NotificationProvider>
+          <DataProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
             <BrowserRouter>
               <Routes>
                 {/* Public Routes */}
@@ -69,6 +72,7 @@ const App = () => (
                   <Route path="leaves" element={<AdminLeaves />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="announcements" element={<AdminAnnouncements />} />
+                  <Route path="branding" element={<AdminBranding />} />
                   <Route path="activity" element={<AdminActivity />} />
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="settings" element={<SettingsPage />} />
@@ -104,8 +108,9 @@ const App = () => (
           </TooltipProvider>
         </DataProvider>
       </NotificationProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+    </AppSettingsProvider>
+  </AuthProvider>
+</QueryClientProvider>
 );
 
 export default App;

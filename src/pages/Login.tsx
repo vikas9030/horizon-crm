@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,7 @@ export default function Login() {
   const [isSignupMode, setIsSignupMode] = useState(false);
   const [loginType, setLoginType] = useState<"admin" | "staff">("staff");
   const { login, loginWithUserId, signup, isAuthenticated, user, isLoading: authLoading, adminExists } = useAuth();
+  const { settings } = useAppSettings();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -146,32 +148,51 @@ export default function Login() {
     );
   }
 
+  const appName = settings?.app_name || 'ESWARI CRM';
+
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-primary relative overflow-hidden">
+      {/* Left Panel - Large Branding Hero */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden" style={{ backgroundColor: `hsl(${settings?.primary_color || '215 80% 35%'})` }}>
+        {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-40" />
 
-        <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Building2 className="w-8 h-8" />
-            </div>
-            <span className="text-3xl font-bold">ESWARI CRM</span>
+        {/* Large Centered Logo/Branding */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 text-white">
+          {/* Giant Logo */}
+          <div className="mb-8 animate-scale-in">
+            {settings?.logo_url ? (
+              <img 
+                src={settings.logo_url} 
+                alt={appName} 
+                className="w-48 h-48 object-contain drop-shadow-2xl"
+              />
+            ) : (
+              <div className="w-48 h-48 rounded-3xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl">
+                <Building2 className="w-24 h-24" />
+              </div>
+            )}
           </div>
 
-          <h1 className="text-5xl font-bold leading-tight mb-6 animate-fade-in">
-            Manage Your Real Estate
-            <br />
-            <span className="text-accent">Business Efficiently</span>
+          {/* App Name - Large */}
+          <h1 className="text-5xl md:text-6xl font-bold text-center mb-4 animate-fade-in">
+            {appName}
           </h1>
 
-          <p className="text-lg text-white/80 max-w-md animate-fade-in" style={{ animationDelay: "0.1s" }}>
-            Streamline your leads, tasks, and team management with our comprehensive CRM solution designed for real
-            estate professionals.
+          {/* Tagline */}
+          <p className="text-xl md:text-2xl text-white/80 text-center mb-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+            Manage Your Real Estate
+            <br />
+            <span style={{ color: `hsl(${settings?.accent_color || '38 95% 55%'})` }}>Business Efficiently</span>
           </p>
 
-          <div className="mt-12 flex gap-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+          {/* Description */}
+          <p className="text-lg text-white/70 max-w-md text-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
+            Streamline your leads, tasks, and team management with our comprehensive CRM solution.
+          </p>
+
+          {/* Stats */}
+          <div className="mt-12 flex gap-8 animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <div className="text-center">
               <div className="text-4xl font-bold">500+</div>
               <div className="text-white/70 text-sm">Active Leads</div>
@@ -188,21 +209,29 @@ export default function Login() {
         </div>
 
         {/* Decorative elements */}
-        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-accent/20 rounded-full blur-3xl animate-float" />
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full blur-3xl animate-float" style={{ backgroundColor: `hsl(${settings?.accent_color || '38 95% 55%'} / 0.3)` }} />
         <div
           className="absolute top-20 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl animate-float"
           style={{ animationDelay: "2s" }}
+        />
+        <div
+          className="absolute bottom-40 left-10 w-32 h-32 bg-white/5 rounded-full blur-xl animate-float"
+          style={{ animationDelay: "3s" }}
         />
       </div>
 
       {/* Right Panel - Login/Signup Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md animate-scale-in">
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">ESWARI CONNECTS</span>
+          <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
+            {settings?.logo_url ? (
+              <img src={settings.logo_url} alt={appName} className="w-20 h-20 object-contain" />
+            ) : (
+              <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ backgroundColor: `hsl(${settings?.primary_color || '215 80% 35%'})` }}>
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+            )}
+            <span className="text-2xl font-bold text-foreground">{appName}</span>
           </div>
 
           <div className="text-center mb-8">
