@@ -7,15 +7,16 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
-import { mockActivities } from '@/data/mockData';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/integrations/supabase/client';
+import { ActivityLog } from '@/types';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { leads, tasks, projects } = useData();
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [teamCount, setTeamCount] = useState(0);
+  const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -33,6 +34,26 @@ export default function AdminDashboard() {
         .select('id');
       
       setTeamCount(profilesData?.length || 0);
+
+      // Fetch recent activities
+      const { data: activityData } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (activityData) {
+        const activities: ActivityLog[] = activityData.map(a => ({
+          id: a.id,
+          userId: a.user_id,
+          userName: a.user_name,
+          action: a.action,
+          module: a.module,
+          details: a.details,
+          createdAt: new Date(a.created_at),
+        }));
+        setRecentActivities(activities);
+      }
     };
 
     fetchStats();
@@ -129,7 +150,7 @@ export default function AdminDashboard() {
 
           {/* Activity Feed */}
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-            <ActivityFeed activities={mockActivities} />
+            <ActivityFeed activities={recentActivities} />
         </div>
 
         {/* Calendar View */}

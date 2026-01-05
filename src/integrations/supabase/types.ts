@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: string
+          id: string
+          module: string
+          user_id: string
+          user_name: string
+          user_role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details: string
+          id?: string
+          module: string
+          user_id: string
+          user_name: string
+          user_role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string
+          id?: string
+          module?: string
+          user_id?: string
+          user_name?: string
+          user_role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           created_at: string

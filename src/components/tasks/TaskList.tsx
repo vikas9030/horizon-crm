@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus } from "lucide-react";
+import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus, Phone, Mail } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -261,7 +261,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             <div className="flex items-start justify-between mb-3 gap-2">
               <div className="min-w-0">
                 <p className="font-medium text-foreground truncate">{task.lead.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{task.lead.phone}</p>
+                {!isManagerView && <p className="text-xs text-muted-foreground truncate">{task.lead.phone}</p>}
               </div>
               <TaskStatusChip status={task.status} />
             </div>
@@ -320,8 +320,14 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 {!isManagerView && (
                   <TableCell>
                     <div>
-                      <p className="text-sm text-muted-foreground">{task.lead.email}</p>
-                      <p className="text-sm text-muted-foreground">{task.lead.phone}</p>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Mail className="w-3 h-3" />
+                        {task.lead.email}
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Phone className="w-3 h-3" />
+                        {task.lead.phone}
+                      </div>
                     </div>
                   </TableCell>
                 )}

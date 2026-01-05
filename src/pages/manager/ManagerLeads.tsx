@@ -6,7 +6,7 @@ export default function ManagerLeads() {
     <div className="min-h-screen">
       <TopBar title="Leads" subtitle="Manage leads" />
       <div className="p-4 md:p-6">
-        <LeadList canCreate canEdit canConvert />
+        <LeadList canCreate canEdit canConvert isManagerView />
       </div>
     </div>
   );

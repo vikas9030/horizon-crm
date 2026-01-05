@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Upload, Building, MapPin, DollarSign, Calendar, Image, Loader2, Link } from 'lucide-react';
+import { X, Plus, Upload, Building, MapPin, IndianRupee, Calendar, Image, Loader2, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,7 +27,7 @@ interface ProjectFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (project: Omit<Project, 'id' | 'createdAt'>) => void;
-  project?: Project;
+  project?: Project | null;
 }
 
 export default function ProjectFormModal({
@@ -354,13 +354,13 @@ export default function ProjectFormModal({
           {/* Price Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="priceMin">Minimum Price ($) *</Label>
+              <Label htmlFor="priceMin">Minimum Price (₹) *</Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="priceMin"
                   type="number"
-                  placeholder="e.g., 450000"
+                  placeholder="e.g., 4500000"
                   value={formData.priceMin}
                   onChange={(e) => setFormData({ ...formData, priceMin: e.target.value })}
                   className="pl-10 input-field"
@@ -369,13 +369,13 @@ export default function ProjectFormModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="priceMax">Maximum Price ($) *</Label>
+              <Label htmlFor="priceMax">Maximum Price (₹) *</Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="priceMax"
                   type="number"
-                  placeholder="e.g., 1200000"
+                  placeholder="e.g., 12000000"
                   value={formData.priceMax}
                   onChange={(e) => setFormData({ ...formData, priceMax: e.target.value })}
                   className="pl-10 input-field"
@@ -475,8 +475,7 @@ export default function ProjectFormModal({
             </div>
             <div className="flex flex-wrap gap-2">
               {nearbyLandmarks.map((landmark) => (
-                <Badge key={landmark} variant="outline" className="gap-1 px-3 py-1">
-                  <MapPin className="w-3 h-3" />
+                <Badge key={landmark} variant="secondary" className="gap-1 px-3 py-1">
                   {landmark}
                   <X
                     className="w-3 h-3 cursor-pointer hover:text-destructive transition-colors"
@@ -489,20 +488,22 @@ export default function ProjectFormModal({
 
           {/* Photos */}
           <div className="space-y-3">
-            <Label>Building Photos</Label>
+            <Label>Project Photos</Label>
             <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-3">
-                <TabsTrigger value="upload" className="flex items-center gap-2">
-                  <Upload className="w-4 h-4" />
-                  Upload
-                </TabsTrigger>
-                <TabsTrigger value="url" className="flex items-center gap-2">
-                  <Link className="w-4 h-4" />
-                  URL
-                </TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload">Upload</TabsTrigger>
+                <TabsTrigger value="url">URL</TabsTrigger>
               </TabsList>
-              <TabsContent value="upload" className="space-y-3">
+              <TabsContent value="upload" className="mt-3">
                 <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
                   <Button
                     type="button"
                     variant="outline"
@@ -511,31 +512,15 @@ export default function ProjectFormModal({
                     className="flex-1"
                   >
                     {isUploadingPhoto ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
-                      <>
-                        <Image className="w-4 h-4 mr-2" />
-                        Select Images
-                      </>
+                      <Upload className="w-4 h-4 mr-2" />
                     )}
+                    {isUploadingPhoto ? 'Uploading...' : 'Upload Photos'}
                   </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handlePhotoUpload}
-                  />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Upload multiple images (max 10MB each)
-                </p>
               </TabsContent>
-              <TabsContent value="url" className="space-y-3">
+              <TabsContent value="url" className="mt-3">
                 <div className="flex gap-2">
                   <Input
                     placeholder="Paste image URL"
@@ -545,91 +530,86 @@ export default function ProjectFormModal({
                     className="input-field flex-1"
                   />
                   <Button type="button" variant="secondary" onClick={addPhoto}>
-                    <Plus className="w-4 h-4" />
+                    <Link className="w-4 h-4" />
                   </Button>
                 </div>
               </TabsContent>
             </Tabs>
-            
-            {/* Cover Image Upload */}
-            {photos.length === 0 && (
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <div className="space-y-2">
-                  <Image className="w-8 h-8 mx-auto text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No images added yet</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => coverInputRef.current?.click()}
-                    disabled={isUploadingCover}
-                  >
-                    {isUploadingCover ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Cover Image
-                      </>
+
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border">
+                    <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="h-8 w-8"
+                        onClick={() => setCoverImage(photo)}
+                      >
+                        <Image className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="destructive"
+                        className="h-8 w-8"
+                        onClick={() => removePhoto(photo)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {coverImage === photo && (
+                      <Badge className="absolute top-2 left-2 bg-primary text-xs">Cover</Badge>
                     )}
-                  </Button>
-                  <input
-                    ref={coverInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleCoverUpload}
-                  />
-                </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Photo Grid */}
-            <div className="grid grid-cols-3 gap-3">
-              {photos.map((photo) => (
-                <div key={photo} className="relative group">
-                  <img
-                    src={photo}
-                    alt="Project"
-                    className="w-full h-24 object-cover rounded-lg border border-border"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={coverImage === photo ? 'default' : 'secondary'}
-                      onClick={() => setCoverImage(photo)}
-                      className="text-xs"
-                    >
-                      {coverImage === photo ? 'Cover' : 'Set Cover'}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="destructive"
-                      className="h-7 w-7"
-                      onClick={() => removePhoto(photo)}
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                  {coverImage === photo && (
-                    <Badge className="absolute top-2 left-2 text-xs">Cover</Badge>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Actions */}
+          {/* Cover Image */}
+          <div className="space-y-3">
+            <Label>Cover Image</Label>
+            <div className="flex gap-2">
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCoverUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={isUploadingCover}
+                className="flex-1"
+              >
+                {isUploadingCover ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                {isUploadingCover ? 'Uploading...' : 'Upload Cover'}
+              </Button>
+            </div>
+            {coverImage && (
+              <div className="relative aspect-video rounded-lg overflow-hidden border max-w-xs">
+                <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
+                <Badge className="absolute top-2 left-2 bg-primary text-xs">Current Cover</Badge>
+              </div>
+            )}
+          </div>
+
+          {/* Submit */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="btn-accent">
+            <Button type="submit" className="btn-primary">
               {project ? 'Update Project' : 'Add Project'}
             </Button>
           </div>
