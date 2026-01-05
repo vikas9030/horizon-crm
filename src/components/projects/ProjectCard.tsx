@@ -1,7 +1,7 @@
 import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building, MapPin, Calendar, DollarSign, Eye, Edit } from 'lucide-react';
+import { Building, MapPin, Calendar, IndianRupee, Eye, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +21,10 @@ const statusColors: Record<string, string> = {
 
 export default function ProjectCard({ project, delay = 0, onView, onEdit, canEdit = false }: ProjectCardProps) {
   const formatPrice = (val: number) => {
-    if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
-    if (val >= 1000) return `$${(val / 1000).toFixed(0)}K`;
-    return `$${val}`;
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(0)} L`;
+    if (val >= 1000) return `₹${(val / 1000).toFixed(0)}K`;
+    return `₹${val}`;
   };
 
   return (
@@ -64,7 +65,7 @@ export default function ProjectCard({ project, delay = 0, onView, onEdit, canEdi
             <span className="capitalize">{project.type}</span>
           </div>
           <div className="flex items-center gap-1 font-semibold text-primary">
-            <DollarSign className="w-4 h-4" />
+            <IndianRupee className="w-4 h-4" />
             {formatPrice(project.priceMin)} - {formatPrice(project.priceMax)}
           </div>
         </div>

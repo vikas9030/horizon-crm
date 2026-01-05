@@ -62,7 +62,7 @@ export default function LeadList({
   isManagerView = false,
 }: LeadListProps) {
   const { user } = useAuth();
-  const { leads, projects, addLead, updateLead, deleteLead } = useData();
+  const { leads, projects, addLead, updateLead, deleteLead, addTask } = useData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -116,10 +116,23 @@ export default function LeadList({
     }
   };
 
-  const handleConvertToTask = (lead: Lead) => {
-    toast.success(`Lead "${lead.name}" converted to task`, {
-      description: "You can now track this lead in the Tasks module.",
-    });
+  const handleConvertToTask = async (lead: Lead) => {
+    try {
+      await addTask({
+        leadId: lead.id,
+        lead: lead,
+        status: "pending",
+        notes: [],
+        attachments: [],
+        assignedTo: user?.id || "unknown",
+        assignedProject: lead.assignedProject,
+      });
+      toast.success(`Lead "${lead.name}" converted to task`, {
+        description: "You can now track this lead in the Tasks module.",
+      });
+    } catch (error) {
+      toast.error("Failed to convert lead to task");
+    }
   };
 
   const handleDeleteLead = async (lead: Lead) => {
@@ -286,19 +299,21 @@ export default function LeadList({
               </div>
               <LeadStatusChip status={lead.status} />
             </div>
-            <div className="grid grid-cols-1 gap-2 text-sm mb-3">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Phone className="w-3.5 h-3.5" />
-                <span className="truncate">{lead.phone}</span>
+            {!isManagerView && (
+              <div className="grid grid-cols-1 gap-2 text-sm mb-3">
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Phone className="w-3.5 h-3.5" />
+                  <span className="truncate">{lead.phone}</span>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Mail className="w-3.5 h-3.5" />
+                  <span className="truncate">{lead.email}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Mail className="w-3.5 h-3.5" />
-                <span className="truncate">{lead.email}</span>
-              </div>
-            </div>
+            )}
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 gap-2">
               <span className="truncate">{getProjectName(lead.assignedProject)}</span>
-              <span className="shrink-0">{formatBudget(lead.budgetMin, lead.budgetMax)}</span>
+              {!isManagerView && <span className="shrink-0">{formatBudget(lead.budgetMin, lead.budgetMax)}</span>}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingLead(lead)}>
@@ -338,7 +353,7 @@ export default function LeadList({
               {!isManagerView && <TableHead className="font-semibold">Phone</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
-              {!isManagerView && <TableHead className="font-semibold">Budget</TableHead>}
+              <TableHead className="font-semibold">Budget</TableHead>
               <TableHead className="font-semibold">Project</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Created By</TableHead>
@@ -385,11 +400,9 @@ export default function LeadList({
                     </div>
                   </TableCell>
                 )}
-                {!isManagerView && (
-                  <TableCell>
-                    <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
-                  </TableCell>
-                )}
+                <TableCell>
+                  <p className="text-sm font-medium">{formatBudget(lead.budgetMin, lead.budgetMax)}</p>
+                </TableCell>
                 <TableCell>
                   <p className="text-sm font-medium">{getProjectName(lead.assignedProject)}</p>
                 </TableCell>
@@ -455,7 +468,7 @@ export default function LeadList({
                         onClick={() => handleDeleteLead(lead)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
+                        Delete Lead
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -487,13 +500,15 @@ export default function LeadList({
         open={!!viewingLead}
         onClose={() => setViewingLead(null)}
         lead={viewingLead}
+        isManagerView={isManagerView}
         canEdit={canEdit}
-        onEdit={canEdit ? () => {
-          if (!viewingLead) return;
-          setEditingLead(viewingLead);
-          setViewingLead(null);
-          setIsFormOpen(true);
-        } : undefined}
+        onEdit={() => {
+          if (viewingLead) {
+            setEditingLead(viewingLead);
+            setViewingLead(null);
+            setIsFormOpen(true);
+          }
+        }}
       />
     </div>
   );

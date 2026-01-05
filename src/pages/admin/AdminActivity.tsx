@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import TopBar from '@/components/layout/TopBar';
-import { mockActivities, mockUsers } from '@/data/mockData';
-import { ActivityLog } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, FileText, Search, Calendar, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,24 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+
+interface ActivityLog {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  module: string;
+  action: string;
+  details: string;
+  created_at: string;
+}
+
+interface Profile {
+  id: string;
+  name: string;
+  user_id: string;
+}
 
 const moduleIcons: Record<string, React.ElementType> = {
   leads: ClipboardList,
@@ -37,31 +55,78 @@ const actionColors: Record<string, string> = {
 };
 
 export default function AdminActivity() {
+  const { user } = useAuth();
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [staffAndManagers, setStaffAndManagers] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<string>('all');
   const [selectedModule, setSelectedModule] = useState<string>('all');
   const [selectedAction, setSelectedAction] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
 
-  // Get unique staff and managers
-  const staffAndManagers = mockUsers.filter(u => u.role === 'staff' || u.role === 'manager');
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch activities
+        const { data: activityData, error: activityError } = await supabase
+          .from('activity_logs')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (activityError) {
+          console.error('Error fetching activities:', activityError);
+        } else {
+          setActivities(activityData || []);
+        }
+
+        // Fetch profiles for staff/manager filter
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, user_id');
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        } else if (profilesData) {
+          // Get roles for each profile
+          const profilesWithRoles: Profile[] = [];
+          for (const profile of profilesData) {
+            const { data: roleData } = await supabase.rpc('get_user_role', {
+              _user_id: profile.id,
+            });
+            if (roleData === 'staff' || roleData === 'manager') {
+              profilesWithRoles.push(profile);
+            }
+          }
+          setStaffAndManagers(profilesWithRoles);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Get unique actions from activities
   const uniqueActions = useMemo(() => {
-    const actions = [...new Set(mockActivities.map(a => a.action))];
+    const actions = [...new Set(activities.map(a => a.action))];
     return actions;
-  }, []);
+  }, [activities]);
 
   // Filter activities
   const filteredActivities = useMemo(() => {
-    return mockActivities.filter(activity => {
+    return activities.filter(activity => {
       // Search filter
       const matchesSearch = 
-        activity.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        activity.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         activity.details.toLowerCase().includes(searchQuery.toLowerCase());
       
       // User filter
-      const matchesUser = selectedUser === 'all' || activity.userId === selectedUser;
+      const matchesUser = selectedUser === 'all' || activity.user_id === selectedUser;
       
       // Module filter
       const matchesModule = selectedModule === 'all' || activity.module === selectedModule;
@@ -72,17 +137,17 @@ export default function AdminActivity() {
       // Date filter
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
-        matchesDate = isWithinInterval(new Date(activity.createdAt), {
+        matchesDate = isWithinInterval(new Date(activity.created_at), {
           start: startOfDay(dateRange.from),
           end: endOfDay(dateRange.to),
         });
       } else if (dateRange.from) {
-        matchesDate = new Date(activity.createdAt) >= startOfDay(dateRange.from);
+        matchesDate = new Date(activity.created_at) >= startOfDay(dateRange.from);
       }
       
       return matchesSearch && matchesUser && matchesModule && matchesAction && matchesDate;
     });
-  }, [searchQuery, selectedUser, selectedModule, selectedAction, dateRange]);
+  }, [activities, searchQuery, selectedUser, selectedModule, selectedAction, dateRange]);
 
   // Group activities by module
   const leadActivities = filteredActivities.filter(a => a.module === 'leads');
@@ -113,7 +178,7 @@ export default function AdminActivity() {
         
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground">
-            <span className="font-medium">{activity.userName}</span>
+            <span className="font-medium">{activity.user_name}</span>
             {' '}
             <span className={actionColors[activity.action] || 'text-muted-foreground'}>
               {activity.action}
@@ -123,10 +188,10 @@ export default function AdminActivity() {
           </p>
           <div className="flex items-center gap-4 mt-2">
             <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(activity.createdAt, { addSuffix: true })}
+              {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
             </p>
             <p className="text-xs text-muted-foreground">
-              {format(activity.createdAt, 'MMM dd, yyyy HH:mm')}
+              {format(new Date(activity.created_at), 'MMM dd, yyyy HH:mm')}
             </p>
             <span className="text-xs px-2 py-0.5 rounded-full bg-muted capitalize">
               {activity.module}
@@ -137,8 +202,8 @@ export default function AdminActivity() {
     );
   };
 
-  const renderActivityList = (activities: ActivityLog[]) => {
-    if (activities.length === 0) {
+  const renderActivityList = (activityList: ActivityLog[]) => {
+    if (activityList.length === 0) {
       return (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No activities found</p>
@@ -148,10 +213,21 @@ export default function AdminActivity() {
     
     return (
       <div className="space-y-3">
-        {activities.map((activity, index) => renderActivityItem(activity, index))}
+        {activityList.map((activity, index) => renderActivityItem(activity, index))}
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <TopBar title="Activity Log" subtitle="Track all system activities by staff and managers" />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -184,9 +260,9 @@ export default function AdminActivity() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
-                    {staffAndManagers.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.role})
+                    {staffAndManagers.map(profile => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -256,6 +332,7 @@ export default function AdminActivity() {
                       selected={{ from: dateRange.from, to: dateRange.to }}
                       onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
                       numberOfMonths={2}
+                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -270,7 +347,7 @@ export default function AdminActivity() {
 
             {/* Filter Summary */}
             <div className="text-sm text-muted-foreground">
-              Showing {filteredActivities.length} of {mockActivities.length} activities
+              Showing {filteredActivities.length} of {activities.length} activities
             </div>
           </div>
         </div>

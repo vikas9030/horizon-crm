@@ -28,8 +28,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Search, Plus, Calendar, Check, X, FileText, ExternalLink, Loader2, Info } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, isWithinInterval, startOfMonth, endOfMonth, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { toast } from 'sonner';
 
 interface LeaveRecord {
@@ -62,9 +64,11 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(showOnlyPending ? 'pending' : 'all');
+  const [nameFilter, setNameFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedLeaveForReject, setSelectedLeaveForReject] = useState<LeaveRecord | null>(null);
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
 
   // Fetch leaves from Supabase
   const fetchLeaves = async () => {
@@ -96,16 +100,38 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     fetchLeaves();
   }, [user]);
 
+  // Get unique names for filter
+  const uniqueNames = useMemo(() => {
+    const names = [...new Set(leaves.map(l => l.user_name))];
+    return names.sort();
+  }, [leaves]);
+
   // Count previous leaves for current user (to determine if document is required)
   const userPreviousLeaveCount = useMemo(() => {
     if (!user) return 0;
     return leaves.filter(l => l.user_id === user.id).length;
   }, [leaves, user]);
 
+  // Get leaves for calendar highlighting
+  const leaveDates = useMemo(() => {
+    const dates: Date[] = [];
+    leaves.forEach(leave => {
+      const start = new Date(leave.start_date);
+      const end = new Date(leave.end_date);
+      let current = new Date(start);
+      while (current <= end) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+    });
+    return dates;
+  }, [leaves]);
+
   const filteredLeaves = useMemo(() => {
     return leaves.filter(leave => {
       const matchesSearch = leave.user_name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || leave.status === statusFilter;
+      const matchesName = nameFilter === 'all' || leave.user_name === nameFilter;
       
       // Role-based access filtering
       let hasAccess = true;
@@ -114,10 +140,18 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
       } else if (user?.role === 'staff') {
         hasAccess = leave.user_id === user.id;
       }
+
+      // Calendar date filter
+      let matchesCalendar = true;
+      if (calendarDate) {
+        const start = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        matchesCalendar = calendarDate >= startOfDay(start) && calendarDate <= endOfDay(end);
+      }
       
-      return matchesSearch && matchesStatus && hasAccess;
+      return matchesSearch && matchesStatus && matchesName && hasAccess && matchesCalendar;
     });
-  }, [leaves, searchQuery, statusFilter, user]);
+  }, [leaves, searchQuery, statusFilter, nameFilter, user, calendarDate]);
 
   // Check if current user can view a leave's document
   const canViewDocument = (leave: LeaveRecord): boolean => {
@@ -279,6 +313,11 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     window.open(url, '_blank');
   };
 
+  // Function to check if a date has a leave
+  const hasLeaveOnDate = (date: Date) => {
+    return leaveDates.some(d => isSameDay(d, date));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -291,7 +330,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-4 flex-1">
+        <div className="flex flex-wrap gap-4 flex-1">
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -301,6 +340,21 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
               className="pl-10 input-field"
             />
           </div>
+
+          {/* Name Filter - for admin and manager */}
+          {(user?.role === 'admin' || user?.role === 'manager') && (
+            <Select value={nameFilter} onValueChange={setNameFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All Employees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {uniqueNames.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           
           {!showOnlyPending && (
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -314,6 +368,39 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
+          )}
+
+          {/* Calendar Filter - for admin and manager */}
+          {(user?.role === 'admin' || user?.role === 'manager') && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-44">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {calendarDate ? format(calendarDate, 'MMM dd, yyyy') : 'Filter by date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={calendarDate}
+                  onSelect={setCalendarDate}
+                  modifiers={{
+                    hasLeave: (date) => hasLeaveOnDate(date),
+                  }}
+                  modifiersStyles={{
+                    hasLeave: { backgroundColor: 'hsl(var(--primary) / 0.2)', borderRadius: '4px' },
+                  }}
+                  className="pointer-events-auto"
+                />
+                {calendarDate && (
+                  <div className="p-2 border-t">
+                    <Button variant="ghost" size="sm" onClick={() => setCalendarDate(undefined)} className="w-full">
+                      Clear date filter
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           )}
         </div>
 
@@ -485,6 +572,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         )}
       </div>
 
+      {/* Leave Form Modal */}
       <LeaveFormModal
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
@@ -492,12 +580,10 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         previousLeaveCount={userPreviousLeaveCount}
       />
 
+      {/* Reject Dialog */}
       <LeaveRejectDialog
         open={rejectDialogOpen}
-        onClose={() => {
-          setRejectDialogOpen(false);
-          setSelectedLeaveForReject(null);
-        }}
+        onClose={() => setRejectDialogOpen(false)}
         onReject={handleRejectWithReason}
         employeeName={selectedLeaveForReject?.user_name || ''}
       />
