@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Announcement, Lead, Project, Task } from '@/types';
 import { useNotifications } from './NotificationContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logActivity } from '@/lib/activityLogger';
 import { toast } from 'sonner';
 
 interface DataContextType {
@@ -118,6 +120,7 @@ const dbToAnnouncement = (row: any): Announcement => ({
 });
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -265,6 +268,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
+    if (user) {
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'leads',
+        action: 'created',
+        details: `created lead "${lead.name}"`,
+      });
+    }
+
     if (notificationContext?.addNotification) {
       notificationContext.addNotification({
         title: 'New Lead Created',
@@ -273,7 +287,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(),
       });
     }
-  }, [notificationContext]);
+  }, [notificationContext, user]);
 
   const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
     const updateData: any = {};
@@ -300,7 +314,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error('Failed to update lead');
       throw error;
     }
-  }, []);
+
+    if (user) {
+      const existing = leads.find(l => l.id === id);
+      const name = data.name ?? existing?.name ?? id;
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'leads',
+        action: 'updated',
+        details: `updated lead "${name}"`,
+      });
+    }
+  }, [leads, user]);
 
   const deleteLead = useCallback(async (id: string) => {
     const { error } = await supabase.from('leads').delete().eq('id', id);
@@ -310,7 +337,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error('Failed to delete lead');
       throw error;
     }
-  }, []);
+
+    if (user) {
+      const existing = leads.find(l => l.id === id);
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'leads',
+        action: 'deleted',
+        details: `deleted lead "${existing?.name ?? id}"`,
+      });
+    }
+  }, [leads, user]);
 
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     const { error } = await supabase.from('tasks').insert([{
@@ -329,6 +368,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
+    if (user) {
+      const leadName = task.lead?.name || leads.find(l => l.id === task.leadId)?.name || 'lead';
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'tasks',
+        action: 'created',
+        details: `created task for "${leadName}"`,
+      });
+    }
+
     if (notificationContext?.addNotification) {
       notificationContext.addNotification({
         title: 'New Task Created',
@@ -337,7 +388,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(),
       });
     }
-  }, [notificationContext]);
+  }, [notificationContext, user, leads]);
 
   const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
     const updateData: any = {};
@@ -355,7 +406,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error('Failed to update task');
       throw error;
     }
-  }, []);
+
+    if (user) {
+      const existing = tasks.find(t => t.id === id);
+      const leadName = data.lead?.name || existing?.lead?.name || 'lead';
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'tasks',
+        action: 'updated',
+        details: `updated task for "${leadName}"`,
+      });
+    }
+  }, [tasks, user]);
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase.from('tasks').delete().eq('id', id);
@@ -365,7 +429,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast.error('Failed to delete task');
       throw error;
     }
-  }, []);
+
+    if (user) {
+      const existing = tasks.find(t => t.id === id);
+      void logActivity({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        module: 'tasks',
+        action: 'deleted',
+        details: `deleted task for "${existing?.lead?.name ?? 'lead'}"`,
+      });
+    }
+  }, [tasks, user]);
 
   const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt'>) => {
     const { error } = await supabase.from('projects').insert([{
