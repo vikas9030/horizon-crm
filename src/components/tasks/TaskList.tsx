@@ -416,6 +416,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         task={editingTask}
         isCreating={isCreating}
         availableLeads={leads}
+        projects={projects}
       />
     </div>
   );
