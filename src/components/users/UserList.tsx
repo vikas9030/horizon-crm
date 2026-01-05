@@ -129,7 +129,7 @@ export default function UserList() {
     address: string;
     role: UserRole;
     managerId?: string;
-  }) => {
+  }): Promise<{ success: boolean; userId?: string }> => {
     try {
       setIsSubmitting(true);
       
@@ -144,19 +144,20 @@ export default function UserList() {
       );
 
       if (result.success) {
-        toast.success(`User created successfully! Login ID: ${result.userId}`);
+        toast.success(`User created successfully!`);
         await fetchUsers();
-        setIsFormOpen(false);
-        setEditingUser(null);
+        return { success: true, userId: result.userId };
       } else {
         toast.error('Failed to create user', {
           description: result.error
         });
+        return { success: false };
       }
     } catch (error: any) {
       toast.error('Error creating user', {
         description: error.message
       });
+      return { success: false };
     } finally {
       setIsSubmitting(false);
     }
