@@ -1,4 +1,4 @@
-import { Bell, Search, ArrowLeft, X } from 'lucide-react';
+import { Bell, Search, ArrowLeft, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
+import { useMobileNav } from '@/contexts/MobileNavContext';
 interface TopBarProps {
   title: string;
   subtitle?: string;
@@ -24,6 +24,7 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
+  const mobileNav = useMobileNav();
 
   // Determine if we're on a dashboard (root page for each role)
   const isDashboard = ['/', '/admin', '/manager', '/staff'].includes(location.pathname);
@@ -33,8 +34,21 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
   };
 
   return (
-    <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 lg:z-40">
-      <div className="flex items-center gap-2 md:gap-4">
+      <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-40">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0">
+        {/* Mobile Hamburger (dashboard pages) */}
+        {!showBackButton && mobileNav && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 md:h-10 md:w-10 lg:hidden"
+            onClick={() => mobileNav.setMobileMenuOpen(!mobileNav.mobileMenuOpen)}
+            aria-label="Open menu"
+          >
+            <Menu className="w-4 h-4 md:w-5 md:h-5" />
+          </Button>
+        )}
+
         {/* Back Button - show on non-dashboard pages */}
         {showBackButton && !isDashboard && (
           <Button 

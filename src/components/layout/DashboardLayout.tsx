@@ -3,9 +3,8 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import { UserRole } from '@/types';
-import { Menu, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { MobileNavProvider } from '@/contexts/MobileNavContext';
 
 interface DashboardLayoutProps {
   requiredRole: UserRole;
@@ -24,40 +23,32 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-      
-      {/* Fixed Header for Mobile */}
-      <div className="fixed top-0 left-0 right-0 h-14 bg-card border-b border-border z-50 lg:hidden flex items-center px-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+    <MobileNavProvider value={{ mobileMenuOpen, setMobileMenuOpen }}>
+      <div className="flex h-screen bg-background overflow-hidden">
+        {/* Mobile Menu Overlay */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* Sidebar - Hidden on mobile, shown on lg+ */}
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto transition-transform duration-300 ease-in-out",
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          )}
         >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-      </div>
-
-      {/* Sidebar - Hidden on mobile, shown on lg+ */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto transition-transform duration-300 ease-in-out",
-        mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
-        <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
-      </div>
-
-      <main className="flex-1 overflow-auto w-full pt-14 lg:pt-0">
-        <div className="animate-fade-in">
-          <Outlet />
+          <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
         </div>
-      </main>
-    </div>
+
+        <main className="flex-1 overflow-y-auto w-full">
+          <div className="animate-fade-in">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </MobileNavProvider>
   );
 }
