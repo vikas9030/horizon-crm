@@ -1,19 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
-import TopBar from '@/components/layout/TopBar';
-import StaffPerformanceChart from '@/components/reports/StaffPerformanceChart';
-import DailyLeadsPercentageChart from '@/components/reports/DailyLeadsPercentageChart';
-import MonthlyLeavesChart from '@/components/reports/MonthlyLeavesChart';
-import { mockUsers, mockLeads, mockTasks } from '@/data/mockData';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Users, ClipboardList, CheckSquare, CalendarOff, Filter, CalendarIcon, Search, Check, ChevronsUpDown, X } from 'lucide-react';
-import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { useEffect, useMemo, useState } from "react";
+import TopBar from "@/components/layout/TopBar";
+import StaffPerformanceChart from "@/components/reports/StaffPerformanceChart";
+import DailyLeadsPercentageChart from "@/components/reports/DailyLeadsPercentageChart";
+import MonthlyLeavesChart from "@/components/reports/MonthlyLeavesChart";
+import { mockUsers } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Users, ClipboardList, CheckSquare, CalendarOff, Filter, CalendarIcon, Check, ChevronsUpDown, X } from "lucide-react";
+import { format, isWithinInterval, startOfDay, endOfDay, subDays, subMonths } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useData } from "@/contexts/DataContext";
 
 interface LeaveRecord {
   id: string;
@@ -36,9 +36,10 @@ type DateRange = {
 };
 
 export default function AdminReports() {
+  const { leads, tasks } = useData();
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
   const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -49,97 +50,73 @@ export default function AdminReports() {
 
   const fetchLeaves = async () => {
     try {
-      const { data, error } = await supabase
-        .from('leaves')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.from("leaves").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       setLeaves(data || []);
     } catch (error) {
-      console.error('Error fetching leaves:', error);
+      console.error("Error fetching leaves:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get team members (managers and staff)
-  const allTeamMembers = mockUsers.filter(u => u.role === 'manager' || u.role === 'staff');
-  
-  // Filter based on user selection
-  const filteredUsers = selectedUserId === 'all' 
-    ? allTeamMembers 
-    : allTeamMembers.filter(u => u.id === selectedUserId);
+  const allTeamMembers = mockUsers.filter((u) => u.role === "manager" || u.role === "staff");
 
-  // Filter leads by user and date range
+  const filteredUsers = selectedUserId === "all" ? allTeamMembers : allTeamMembers.filter((u) => u.id === selectedUserId);
+
   const filteredLeads = useMemo(() => {
-    let leads = selectedUserId === 'all'
-      ? mockLeads
-      : mockLeads.filter(l => l.createdBy === selectedUserId);
+    let list = selectedUserId === "all" ? leads : leads.filter((l) => l.createdBy === selectedUserId);
 
     if (dateRange.from && dateRange.to) {
-      leads = leads.filter(l => {
+      list = list.filter((l) => {
         const createdAt = new Date(l.createdAt);
-        return isWithinInterval(createdAt, { 
-          start: startOfDay(dateRange.from!), 
-          end: endOfDay(dateRange.to!) 
-        });
+        return isWithinInterval(createdAt, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to!) });
       });
     }
 
-    return leads;
-  }, [selectedUserId, dateRange, mockLeads]);
+    return list;
+  }, [selectedUserId, dateRange, leads]);
 
-  // Filter tasks by user and date range
   const filteredTasks = useMemo(() => {
-    let tasks = selectedUserId === 'all'
-      ? mockTasks
-      : mockTasks.filter(t => t.assignedTo === selectedUserId);
+    let list = selectedUserId === "all" ? tasks : tasks.filter((t) => t.assignedTo === selectedUserId);
 
     if (dateRange.from && dateRange.to) {
-      tasks = tasks.filter(t => {
+      list = list.filter((t) => {
         const createdAt = new Date(t.createdAt);
-        return isWithinInterval(createdAt, { 
-          start: startOfDay(dateRange.from!), 
-          end: endOfDay(dateRange.to!) 
-        });
+        return isWithinInterval(createdAt, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to!) });
       });
     }
 
-    return tasks;
-  }, [selectedUserId, dateRange, mockTasks]);
+    return list;
+  }, [selectedUserId, dateRange, tasks]);
 
-  // Convert database leaves to match the Leave type for the chart
   const convertedLeaves = useMemo(() => {
-    let filteredDbLeaves = leaves.filter(l => selectedUserId === 'all' || l.user_id === selectedUserId);
+    let filteredDbLeaves = leaves.filter((l) => selectedUserId === "all" || l.user_id === selectedUserId);
 
     if (dateRange.from && dateRange.to) {
-      filteredDbLeaves = filteredDbLeaves.filter(l => {
+      filteredDbLeaves = filteredDbLeaves.filter((l) => {
         const startDate = new Date(l.start_date);
-        return isWithinInterval(startDate, { 
-          start: startOfDay(dateRange.from!), 
-          end: endOfDay(dateRange.to!) 
-        });
+        return isWithinInterval(startDate, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to!) });
       });
     }
 
-    return filteredDbLeaves.map(l => ({
+    return filteredDbLeaves.map((l) => ({
       id: l.id,
       userId: l.user_id,
       userName: l.user_name,
-      userRole: l.user_role as 'admin' | 'manager' | 'staff',
-      type: l.leave_type as 'sick' | 'casual' | 'annual' | 'other',
+      userRole: l.user_role as "admin" | "manager" | "staff",
+      type: l.leave_type as "sick" | "casual" | "annual" | "other",
       startDate: new Date(l.start_date),
       endDate: new Date(l.end_date),
       reason: l.reason,
-      status: l.status as 'pending' | 'approved' | 'rejected',
+      status: l.status as "pending" | "approved" | "rejected",
       approvedBy: l.approved_by || undefined,
       createdAt: new Date(l.created_at),
     }));
   }, [leaves, selectedUserId, dateRange]);
 
-  const approvedLeaves = convertedLeaves.filter(l => l.status === 'approved').length;
-  const selectedUser = allTeamMembers.find(u => u.id === selectedUserId);
+  const approvedLeaves = convertedLeaves.filter((l) => l.status === "approved").length;
+  const selectedUser = allTeamMembers.find((u) => u.id === selectedUserId);
 
   const handleQuickDateFilter = (days: number) => {
     const to = new Date();
@@ -153,25 +130,18 @@ export default function AdminReports() {
     setDateRange({ from, to });
   };
 
-  const clearDateFilter = () => {
-    setDateRange({ from: undefined, to: undefined });
-  };
-
-  const clearUserFilter = () => {
-    setSelectedUserId('all');
-  };
+  const clearDateFilter = () => setDateRange({ from: undefined, to: undefined });
+  const clearUserFilter = () => setSelectedUserId("all");
 
   return (
     <div className="min-h-screen">
       <TopBar title="Reports" subtitle="Team performance analytics and insights" />
-      
-      <div className="p-6 space-y-6">
-        {/* Filter Section */}
+
+      <div className="p-4 md:p-6 space-y-6">
         <Card className="glass-card">
           <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Team Member Filter */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full lg:w-auto">
                 <Filter className="w-5 h-5 text-muted-foreground shrink-0" />
                 <Popover open={userSearchOpen} onOpenChange={setUserSearchOpen}>
                   <PopoverTrigger asChild>
@@ -179,16 +149,13 @@ export default function AdminReports() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={userSearchOpen}
-                      className="w-[250px] justify-between bg-background"
+                      className="w-full sm:w-[250px] justify-between bg-background"
                     >
-                      {selectedUserId === 'all' 
-                        ? "All Team Members" 
-                        : selectedUser?.name || "Select member..."
-                      }
+                      {selectedUserId === "all" ? "All Team Members" : selectedUser?.name || "Select member..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[250px] p-0 bg-background border border-border z-50">
+                  <PopoverContent className="w-[min(92vw,250px)] p-0 bg-background border border-border z-50">
                     <Command>
                       <CommandInput placeholder="Search team members..." />
                       <CommandList>
@@ -197,37 +164,25 @@ export default function AdminReports() {
                           <CommandItem
                             value="all"
                             onSelect={() => {
-                              setSelectedUserId('all');
+                              setSelectedUserId("all");
                               setUserSearchOpen(false);
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedUserId === 'all' ? "opacity-100" : "opacity-0"
-                              )}
-                            />
+                            <Check className={cn("mr-2 h-4 w-4", selectedUserId === "all" ? "opacity-100" : "opacity-0")} />
                             All Team Members
                           </CommandItem>
-                          {allTeamMembers.map(user => (
+                          {allTeamMembers.map((u) => (
                             <CommandItem
-                              key={user.id}
-                              value={user.name}
+                              key={u.id}
+                              value={u.name}
                               onSelect={() => {
-                                setSelectedUserId(user.id);
+                                setSelectedUserId(u.id);
                                 setUserSearchOpen(false);
                               }}
                             >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedUserId === user.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {user.name}
-                              <span className="ml-auto text-xs text-muted-foreground capitalize">
-                                {user.role}
-                              </span>
+                              <Check className={cn("mr-2 h-4 w-4", selectedUserId === u.id ? "opacity-100" : "opacity-0")} />
+                              {u.name}
+                              <span className="ml-auto text-xs text-muted-foreground capitalize">{u.role}</span>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -235,22 +190,21 @@ export default function AdminReports() {
                     </Command>
                   </PopoverContent>
                 </Popover>
-                {selectedUserId !== 'all' && (
+                {selectedUserId !== "all" && (
                   <Button variant="ghost" size="icon" onClick={clearUserFilter} className="h-8 w-8">
                     <X className="h-4 w-4" />
                   </Button>
                 )}
               </div>
 
-              {/* Date Range Filter */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full lg:w-auto">
                 <CalendarIcon className="w-5 h-5 text-muted-foreground shrink-0" />
                 <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-[280px] justify-start text-left font-normal bg-background",
+                        "w-full sm:w-[280px] justify-start text-left font-normal bg-background",
                         !dateRange.from && "text-muted-foreground"
                       )}
                     >
@@ -268,7 +222,7 @@ export default function AdminReports() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-background border border-border z-50" align="start">
+                  <PopoverContent className="w-[min(92vw,600px)] p-0 bg-background border border-border z-50" align="start">
                     <div className="p-3 border-b border-border">
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => { handleQuickDateFilter(7); setDatePickerOpen(false); }}>
@@ -304,14 +258,11 @@ export default function AdminReports() {
               </div>
             </div>
 
-            {/* Active Filters Summary */}
-            {(selectedUserId !== 'all' || dateRange.from) && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+            {(selectedUserId !== "all" || dateRange.from) && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>Filters:</span>
-                {selectedUserId !== 'all' && selectedUser && (
-                  <span className="px-2 py-1 rounded-md bg-primary/10 text-primary">
-                    {selectedUser.name}
-                  </span>
+                {selectedUserId !== "all" && selectedUser && (
+                  <span className="px-2 py-1 rounded-md bg-primary/10 text-primary">{selectedUser.name}</span>
                 )}
                 {dateRange.from && dateRange.to && (
                   <span className="px-2 py-1 rounded-md bg-primary/10 text-primary">
@@ -323,22 +274,20 @@ export default function AdminReports() {
           </CardContent>
         </Card>
 
-        {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                {selectedUserId === 'all' ? 'Team Members' : 'Selected Member'}
+                {selectedUserId === "all" ? "Team Members" : "Selected Member"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{filteredUsers.length}</p>
               <p className="text-xs text-muted-foreground">
-                {selectedUserId === 'all' 
-                  ? `${mockUsers.filter(u => u.role === 'manager').length} managers, ${mockUsers.filter(u => u.role === 'staff').length} staff`
-                  : selectedUser?.role
-                }
+                {selectedUserId === "all"
+                  ? `${mockUsers.filter((u) => u.role === "manager").length} managers, ${mockUsers.filter((u) => u.role === "staff").length} staff`
+                  : selectedUser?.role}
               </p>
             </CardContent>
           </Card>
@@ -352,9 +301,7 @@ export default function AdminReports() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{filteredLeads.length}</p>
-              <p className="text-xs text-muted-foreground">
-                {dateRange.from ? 'In selected period' : 'All time'}
-              </p>
+              <p className="text-xs text-muted-foreground">{dateRange.from ? "In selected period" : "All time"}</p>
             </CardContent>
           </Card>
 
@@ -367,9 +314,7 @@ export default function AdminReports() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{filteredTasks.length}</p>
-              <p className="text-xs text-muted-foreground">
-                {filteredTasks.filter(t => t.status === 'completed').length} completed
-              </p>
+              <p className="text-xs text-muted-foreground">{filteredTasks.filter((t) => t.status === "completed").length} completed</p>
             </CardContent>
           </Card>
 
@@ -382,33 +327,16 @@ export default function AdminReports() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{approvedLeaves}</p>
-              <p className="text-xs text-muted-foreground">
-                {dateRange.from ? 'In selected period' : 'All time'}
-              </p>
+              <p className="text-xs text-muted-foreground">{dateRange.from ? "In selected period" : "All time"}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Staff Performance Chart */}
-        <StaffPerformanceChart 
-          users={filteredUsers} 
-          leads={filteredLeads} 
-          tasks={filteredTasks} 
-        />
+        <StaffPerformanceChart users={filteredUsers} leads={filteredLeads} tasks={filteredTasks} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Daily Leads Percentage */}
-          <DailyLeadsPercentageChart 
-            users={filteredUsers} 
-            leads={filteredLeads}
-            dailyTarget={100}
-          />
-
-          {/* Monthly Leaves Distribution */}
-          <MonthlyLeavesChart 
-            users={filteredUsers}
-            leaves={convertedLeaves}
-          />
+          <DailyLeadsPercentageChart users={filteredUsers} leads={filteredLeads} dailyTarget={100} />
+          <MonthlyLeavesChart users={filteredUsers} leaves={convertedLeaves} />
         </div>
       </div>
     </div>

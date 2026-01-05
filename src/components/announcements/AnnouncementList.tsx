@@ -58,14 +58,14 @@ export default function AnnouncementList({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">All Announcements</h2>
           <p className="text-sm text-muted-foreground">
             {announcements.filter(a => a.isActive).length} active announcements
           </p>
         </div>
-        <Button className="btn-accent" onClick={() => setIsFormOpen(true)}>
+        <Button className="btn-accent w-full sm:w-auto" onClick={() => setIsFormOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           New Announcement
         </Button>
@@ -96,62 +96,67 @@ export default function AnnouncementList({
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold">{announcement.title}</h3>
-                      <Badge
-                        variant="outline"
-                        className={cn("capitalize text-xs border", priorityStyles[announcement.priority])}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h3 className="font-semibold break-words">{announcement.title}</h3>
+                        <Badge
+                          variant="outline"
+                          className={cn("capitalize text-xs border", priorityStyles[announcement.priority])}
+                        >
+                          {priorityIcons[announcement.priority]}
+                          {announcement.priority}
+                        </Badge>
+                        {!announcement.isActive && (
+                          <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {announcement.message}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={announcement.isActive ? "secondary" : "default"}
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => onToggleActive(announcement.id)}
                       >
-                        {priorityIcons[announcement.priority]}
-                        {announcement.priority}
-                      </Badge>
-                      {!announcement.isActive && (
-                        <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                        {announcement.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteId(announcement.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>
+                          {announcement.targetRoles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{format(announcement.createdAt, 'MMM dd, yyyy h:mm a')}</span>
+                      </div>
+                      {announcement.expiresAt && (
+                        <div className="flex items-center gap-1.5 text-warning">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Expires: {format(announcement.expiresAt, 'MMM dd, yyyy')}</span>
+                        </div>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {announcement.message}
-                    </p>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      variant={announcement.isActive ? "secondary" : "default"}
-                      size="sm"
-                      onClick={() => onToggleActive(announcement.id)}
-                    >
-                      {announcement.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteId(announcement.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5" />
-                    <span>
-                      {announcement.targetRoles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{format(announcement.createdAt, 'MMM dd, yyyy h:mm a')}</span>
-                  </div>
-                  {announcement.expiresAt && (
-                    <div className="flex items-center gap-1.5 text-warning">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Expires: {format(announcement.expiresAt, 'MMM dd, yyyy')}</span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

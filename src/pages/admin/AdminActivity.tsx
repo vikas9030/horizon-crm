@@ -156,9 +156,9 @@ export default function AdminActivity() {
   return (
     <div className="min-h-screen">
       <TopBar title="Activity Log" subtitle="Track all system activities by staff and managers" />
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Filters */}
-        <div className="glass-card rounded-2xl p-6">
+        <div className="glass-card rounded-2xl p-4 md:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap gap-4 items-end">
               {/* Search */}
@@ -277,22 +277,12 @@ export default function AdminActivity() {
 
         {/* Activity Tabs */}
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
-            <TabsTrigger value="all">
-              All ({filteredActivities.length})
-            </TabsTrigger>
-            <TabsTrigger value="leads">
-              Leads ({leadActivities.length})
-            </TabsTrigger>
-            <TabsTrigger value="tasks">
-              Tasks ({taskActivities.length})
-            </TabsTrigger>
-            <TabsTrigger value="leaves">
-              Leaves ({leaveActivities.length})
-            </TabsTrigger>
-            <TabsTrigger value="other">
-              Other ({otherActivities.length})
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 mb-6">
+            <TabsTrigger value="all">All ({filteredActivities.length})</TabsTrigger>
+            <TabsTrigger value="leads">Leads ({leadActivities.length})</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks ({taskActivities.length})</TabsTrigger>
+            <TabsTrigger value="leaves">Leaves ({leaveActivities.length})</TabsTrigger>
+            <TabsTrigger value="other">Other ({otherActivities.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="glass-card rounded-2xl p-6">

@@ -1,19 +1,19 @@
-import { useState, useMemo } from 'react';
-import { Task, TaskStatus, Lead } from '@/types';
-import { mockTasks, mockProjects, mockLeads } from '@/data/mockData';
-import TaskStatusChip from './TaskStatusChip';
-import TaskFormModal from './TaskFormModal';
-import TaskExcelImportExport from './TaskExcelImportExport';
-import StaffProfileChip from '@/components/common/StaffProfileChip';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useMemo, useState } from "react";
+import { Task, TaskStatus, Lead } from "@/types";
+import { mockProjects } from "@/data/mockData";
+import TaskStatusChip from "./TaskStatusChip";
+import TaskFormModal from "./TaskFormModal";
+import TaskExcelImportExport from "./TaskExcelImportExport";
+import StaffProfileChip from "@/components/common/StaffProfileChip";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -21,48 +21,48 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus } from 'lucide-react';
+} from "@/components/ui/table";
+import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { toast } from 'sonner';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+} from "@/components/ui/dropdown-menu";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useData } from "@/contexts/DataContext";
 
 interface TaskListProps {
   canEdit?: boolean;
   canCreate?: boolean;
   isManagerView?: boolean;
-  isStaffView?: boolean;
-  userId?: string;
 }
 
-export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false, isStaffView = false, userId }: TaskListProps) {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false }: TaskListProps) {
+  const { user } = useAuth();
+  const { tasks, leads, addTask, updateTask } = useData();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
-      const matchesSearch = 
+    return tasks.filter((task) => {
+      const matchesSearch =
         task.lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.lead.email.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-      
-      const matchesProject = projectFilter === 'all' || task.assignedProject === projectFilter;
-      
-      // Date filter
+
+      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+      const matchesProject = projectFilter === "all" || task.assignedProject === projectFilter;
+
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
         matchesDate = isWithinInterval(new Date(task.createdAt), {
@@ -72,22 +72,14 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       } else if (dateRange.from) {
         matchesDate = new Date(task.createdAt) >= startOfDay(dateRange.from);
       }
-      
-      // Role-based filtering: Staff can only see their assigned tasks
-      let hasAccess = true;
-      if (isStaffView && userId) {
-        hasAccess = task.assignedTo === userId || task.assignedTo === '3'; // '3' is demo staff
-      }
-      
-      return matchesSearch && matchesStatus && matchesProject && matchesDate && hasAccess;
+
+      return matchesSearch && matchesStatus && matchesProject && matchesDate;
     });
-  }, [tasks, searchQuery, statusFilter, projectFilter, dateRange, isStaffView, userId]);
+  }, [tasks, searchQuery, statusFilter, projectFilter, dateRange]);
 
   const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, status: newStatus, updatedAt: new Date() } : t
-    ));
-    toast.success('Task status updated');
+    updateTask(taskId, { status: newStatus, updatedAt: new Date() });
+    toast.success("Task status updated");
   };
 
   const handleEditTask = (task: Task) => {
@@ -97,26 +89,24 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
 
   const handleSaveTask = (updatedTask: Partial<Task>) => {
     if (editingTask) {
-      setTasks(prev => prev.map(t => 
-        t.id === editingTask.id ? { ...t, ...updatedTask } : t
-      ));
-      toast.success('Task updated successfully');
+      updateTask(editingTask.id, { ...updatedTask, updatedAt: new Date() });
+      toast.success("Task updated successfully");
     } else if (isCreating && updatedTask.lead) {
       const newTask: Task = {
         id: String(Date.now()),
         leadId: updatedTask.lead.id,
         lead: updatedTask.lead,
-        status: updatedTask.status || 'pending',
+        status: updatedTask.status || "pending",
         nextActionDate: updatedTask.nextActionDate,
         notes: updatedTask.notes || [],
         attachments: updatedTask.attachments || [],
-        assignedTo: userId || '3',
+        assignedTo: updatedTask.assignedTo || user?.id || "unknown",
         assignedProject: updatedTask.assignedProject,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      setTasks(prev => [newTask, ...prev]);
-      toast.success('Task created successfully');
+      addTask(newTask);
+      toast.success("Task created successfully");
     }
     setIsFormOpen(false);
     setEditingTask(null);
@@ -130,26 +120,30 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   };
 
   const handleImportTasks = (importedTasks: Partial<Task>[]) => {
-    const newTasks: Task[] = importedTasks.map((taskData, index) => ({
-      id: String(Date.now() + index),
-      leadId: taskData.lead?.id || String(Date.now() + index),
-      lead: taskData.lead as Lead,
-      status: taskData.status || 'pending',
-      nextActionDate: taskData.nextActionDate,
-      notes: taskData.notes || [],
-      attachments: taskData.attachments || [],
-      assignedTo: userId || '3',
-      assignedProject: taskData.assignedProject,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
-    setTasks(prev => [...newTasks, ...prev]);
+    importedTasks.forEach((taskData, index) => {
+      if (!taskData.lead) return;
+
+      const newTask: Task = {
+        id: String(Date.now() + index),
+        leadId: taskData.lead.id,
+        lead: taskData.lead as Lead,
+        status: taskData.status || "pending",
+        nextActionDate: taskData.nextActionDate,
+        notes: taskData.notes || [],
+        attachments: taskData.attachments || [],
+        assignedTo: taskData.assignedTo || user?.id || "unknown",
+        assignedProject: taskData.assignedProject,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      addTask(newTask);
+    });
   };
 
   const getProjectName = (projectId?: string) => {
-    if (!projectId) return '-';
-    const project = mockProjects.find(p => p.id === projectId);
-    return project ? project.name : '-';
+    if (!projectId) return "-";
+    const project = mockProjects.find((p) => p.id === projectId);
+    return project ? project.name : "-";
   };
 
   return (
@@ -166,7 +160,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               className="pl-10 input-field w-full"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full">
@@ -196,10 +190,12 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
               </SelectContent>
             </Select>
 
-            {/* Date Range Filter */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start text-left font-normal w-full col-span-2 sm:col-span-1">
+                <Button
+                  variant="outline"
+                  className="justify-start text-left font-normal w-full col-span-2 sm:col-span-1"
+                >
                   <Calendar className="mr-2 h-4 w-4 shrink-0" />
                   <span className="truncate text-xs">
                     {dateRange.from ? (
@@ -229,7 +225,12 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
             </Popover>
 
             {dateRange.from && (
-              <Button variant="ghost" size="sm" onClick={() => setDateRange({})} className="col-span-2 sm:col-span-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDateRange({})}
+                className="col-span-2 sm:col-span-1"
+              >
                 Clear
               </Button>
             )}
@@ -250,28 +251,26 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
         {filteredTasks.map((task, index) => (
-          <div 
-            key={task.id} 
+          <div
+            key={task.id}
             className="glass-card rounded-xl p-4 animate-fade-in"
             style={{ animationDelay: `${index * 50}ms` }}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="font-medium text-foreground">{task.lead.name}</p>
-                <p className="text-xs text-muted-foreground">{task.lead.phone}</p>
+            <div className="flex items-start justify-between mb-3 gap-2">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground truncate">{task.lead.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{task.lead.phone}</p>
               </div>
               <TaskStatusChip status={task.status} />
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+            <div className="grid grid-cols-1 gap-2 text-sm mb-3">
               <div>
                 <p className="text-xs text-muted-foreground">Project</p>
-                <p className="font-medium">{getProjectName(task.assignedProject)}</p>
+                <p className="font-medium truncate">{getProjectName(task.assignedProject)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Next Action</p>
-                <p className="font-medium">
-                  {task.nextActionDate ? format(task.nextActionDate, 'MMM dd') : '-'}
-                </p>
+                <p className="font-medium">{task.nextActionDate ? format(task.nextActionDate, "MMM dd") : "-"}</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -308,8 +307,8 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           </TableHeader>
           <TableBody>
             {filteredTasks.map((task, index) => (
-              <TableRow 
-                key={task.id} 
+              <TableRow
+                key={task.id}
                 className="table-row-hover animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
@@ -337,10 +336,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 </TableCell>
                 <TableCell>
                   {canEdit ? (
-                    <Select
-                      value={task.status}
-                      onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}
-                    >
+                    <Select value={task.status} onValueChange={(value: TaskStatus) => handleStatusChange(task.id, value)}>
                       <SelectTrigger className="w-36 h-8 text-xs">
                         <TaskStatusChip status={task.status} />
                       </SelectTrigger>
@@ -364,7 +360,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                     {task.nextActionDate ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="w-3.5 h-3.5" />
-                        {format(task.nextActionDate, 'MMM dd, yyyy')}
+                        {format(task.nextActionDate, "MMM dd, yyyy")}
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">-</span>
@@ -372,9 +368,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                   </TableCell>
                 )}
                 <TableCell>
-                  <p className="text-sm text-muted-foreground">
-                    {format(task.createdAt, 'MMM dd, yyyy')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{format(task.createdAt, "MMM dd, yyyy")}</p>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -419,7 +413,7 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         onSave={handleSaveTask}
         task={editingTask}
         isCreating={isCreating}
-        availableLeads={mockLeads}
+        availableLeads={leads}
       />
     </div>
   );
