@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
 import { Announcement, Lead, Project, Task } from '@/types';
 import { mockAnnouncements, mockLeads, mockProjects, mockTasks } from '@/data/mockData';
+import { useNotifications } from './NotificationContext';
 
 interface DataContextType {
   leads: Lead[];
@@ -27,50 +28,80 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements);
+  
+  // Get notification functions from context if available
+  const notificationContext = useNotifications();
 
-  const addLead = (lead: Lead) => {
+  const addLead = useCallback((lead: Lead) => {
     setLeads(prev => [lead, ...prev]);
-  };
+    // Add notification for new lead
+    if (notificationContext?.addNotification) {
+      notificationContext.addNotification({
+        title: 'New Lead Created',
+        message: `Lead "${lead.name}" has been created`,
+        type: 'lead',
+        createdAt: new Date(),
+      });
+    }
+  }, [notificationContext]);
 
-  const updateLead = (id: string, data: Partial<Lead>) => {
+  const updateLead = useCallback((id: string, data: Partial<Lead>) => {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data, updatedAt: new Date() } : l));
-  };
+  }, []);
 
-  const deleteLead = (id: string) => {
+  const deleteLead = useCallback((id: string) => {
     setLeads(prev => prev.filter(l => l.id !== id));
-  };
+  }, []);
 
-  const addTask = (task: Task) => {
+  const addTask = useCallback((task: Task) => {
     setTasks(prev => [task, ...prev]);
-  };
+    // Add notification for new task
+    if (notificationContext?.addNotification) {
+      notificationContext.addNotification({
+        title: 'New Task Created',
+        message: `Task for "${task.lead.name}" has been created`,
+        type: 'task',
+        createdAt: new Date(),
+      });
+    }
+  }, [notificationContext]);
 
-  const updateTask = (id: string, data: Partial<Task>) => {
+  const updateTask = useCallback((id: string, data: Partial<Task>) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data, updatedAt: new Date() } : t));
-  };
+  }, []);
 
-  const deleteTask = (id: string) => {
+  const deleteTask = useCallback((id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
-  const addProject = (project: Project) => {
+  const addProject = useCallback((project: Project) => {
     setProjects(prev => [project, ...prev]);
-  };
+  }, []);
 
-  const updateProject = (id: string, data: Partial<Project>) => {
+  const updateProject = useCallback((id: string, data: Partial<Project>) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-  };
+  }, []);
 
-  const addAnnouncement = (announcement: Announcement) => {
+  const addAnnouncement = useCallback((announcement: Announcement) => {
     setAnnouncements(prev => [announcement, ...prev]);
-  };
+    // Add notification for new announcement
+    if (notificationContext?.addNotification) {
+      notificationContext.addNotification({
+        title: 'New Announcement',
+        message: announcement.title,
+        type: 'announcement',
+        createdAt: new Date(),
+      });
+    }
+  }, [notificationContext]);
 
-  const deleteAnnouncement = (id: string) => {
+  const deleteAnnouncement = useCallback((id: string) => {
     setAnnouncements(prev => prev.filter(a => a.id !== id));
-  };
+  }, []);
 
-  const toggleAnnouncementActive = (id: string) => {
+  const toggleAnnouncementActive = useCallback((id: string) => {
     setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, isActive: !a.isActive } : a));
-  };
+  }, []);
 
   const value = useMemo(() => ({
     leads,
@@ -88,7 +119,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     addAnnouncement,
     deleteAnnouncement,
     toggleAnnouncementActive,
-  }), [leads, tasks, projects, announcements]);
+  }), [leads, tasks, projects, announcements, addLead, updateLead, deleteLead, addTask, updateTask, deleteTask, addProject, updateProject, addAnnouncement, deleteAnnouncement, toggleAnnouncementActive]);
 
   return (
     <DataContext.Provider value={value}>

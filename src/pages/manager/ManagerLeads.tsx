@@ -4,9 +4,9 @@ import LeadList from "@/components/leads/LeadList";
 export default function ManagerLeads() {
   return (
     <div className="min-h-screen">
-      <TopBar title="Leads" subtitle="View leads" />
+      <TopBar title="Leads" subtitle="Manage leads" />
       <div className="p-4 md:p-6">
-        <LeadList canCreate={false} canEdit={false} canConvert={false} isManagerView />
+        <LeadList canCreate canEdit canConvert />
       </div>
     </div>
   );

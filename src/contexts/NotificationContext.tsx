@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Lead, Task } from '@/types';
-import { mockLeads, mockTasks, mockAnnouncements } from '@/data/mockData';
+import { Lead, Task, Announcement } from '@/types';
 import { isAfter, isBefore, addDays, isToday } from 'date-fns';
 
-interface Notification {
+export interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'lead' | 'task' | 'announcement' | 'reminder';
+  type: 'lead' | 'task' | 'announcement' | 'reminder' | 'leave';
   createdAt: Date;
   read: boolean;
 }
@@ -19,6 +18,7 @@ interface NotificationContextType {
   markAllAsRead: () => void;
   clearNotifications: () => void;
   playNotificationSound: () => void;
+  addNotification: (notification: Omit<Notification, 'id' | 'read'>) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -48,56 +48,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  useEffect(() => {
-    const today = new Date();
-    const nextWeek = addDays(today, 7);
-    
-    const leadNotifications: Notification[] = mockLeads
-      .filter(l => 
-        l.status === 'reminder' && 
-        l.followUpDate && 
-        ((isAfter(l.followUpDate, today) && isBefore(l.followUpDate, nextWeek)) ||
-         (isBefore(l.followUpDate, today) && !isToday(l.followUpDate)))
-      )
-      .map(lead => ({
-        id: `lead-${lead.id}`,
-        title: 'Lead Follow-up',
-        message: `Follow-up required for ${lead.name}`,
-        type: 'lead' as const,
-        createdAt: lead.followUpDate || new Date(),
-        read: false,
-      }));
-
-    const taskNotifications: Notification[] = mockTasks
-      .filter(t => 
-        t.nextActionDate && 
-        ((isAfter(t.nextActionDate, today) && isBefore(t.nextActionDate, nextWeek)) ||
-         (isBefore(t.nextActionDate, today) && !isToday(t.nextActionDate))) &&
-        t.status !== 'completed' && 
-        t.status !== 'rejected'
-      )
-      .map(task => ({
-        id: `task-${task.id}`,
-        title: 'Task Action Required',
-        message: `Action needed for ${task.lead.name}`,
-        type: 'task' as const,
-        createdAt: task.nextActionDate || new Date(),
-        read: false,
-      }));
-
-    const announcementNotifications: Notification[] = mockAnnouncements
-      .filter(a => a.isActive && (!a.expiresAt || new Date(a.expiresAt) > new Date()))
-      .map(announcement => ({
-        id: `announcement-${announcement.id}`,
-        title: 'Announcement',
-        message: announcement.title,
-        type: 'announcement' as const,
-        createdAt: announcement.createdAt,
-        read: false,
-      }));
-
-    setNotifications([...announcementNotifications, ...leadNotifications, ...taskNotifications]);
-  }, []);
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'read'>) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      read: false,
+    };
+    setNotifications(prev => [newNotification, ...prev]);
+    playNotificationSound();
+  }, [playNotificationSound]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -122,7 +81,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       markAsRead, 
       markAllAsRead, 
       clearNotifications,
-      playNotificationSound 
+      playNotificationSound,
+      addNotification,
     }}>
       {children}
     </NotificationContext.Provider>

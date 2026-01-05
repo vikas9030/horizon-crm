@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Leave, LeaveStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useNotifications } from '@/contexts/NotificationContext';
 import LeaveStatusChip from './LeaveStatusChip';
 import LeaveFormModal from './LeaveFormModal';
+import LeaveRejectDialog from './LeaveRejectDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -49,11 +51,14 @@ interface LeaveListProps {
 
 export default function LeaveList({ canApprove = false, canCreate = false, showOnlyPending = false }: LeaveListProps) {
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(showOnlyPending ? 'pending' : 'all');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedLeaveForReject, setSelectedLeaveForReject] = useState<LeaveRecord | null>(null);
 
   // Fetch leaves from Supabase
   const fetchLeaves = async () => {
@@ -156,7 +161,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
     }
   };
 
-  const handleReject = async (leaveId: string) => {
+  const handleReject = async (leaveId: string, reason?: string) => {
     if (!user) return;
     
     try {
@@ -177,7 +182,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
       setLeaves(prev => prev.map(l => 
         l.id === leaveId ? { ...l, status: 'rejected', approved_by: user.id } : l
       ));
-      toast.success('Leave request rejected');
+      toast.success(reason ? `Leave request rejected: ${reason}` : 'Leave request rejected');
     } catch (error) {
       console.error('Error rejecting leave:', error);
       toast.error('Failed to reject leave');
@@ -215,10 +220,28 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
       if (data) {
         setLeaves(prev => [data, ...prev]);
         toast.success('Leave request submitted successfully');
+        // Add notification for leave request
+        addNotification({
+          title: 'Leave Request Submitted',
+          message: `${user.name} has submitted a leave request`,
+          type: 'leave',
+          createdAt: new Date(),
+        });
       }
     } catch (error) {
       console.error('Error creating leave:', error);
       toast.error('Failed to submit leave request');
+    }
+  };
+
+  const openRejectDialog = (leave: LeaveRecord) => {
+    setSelectedLeaveForReject(leave);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectWithReason = (reason?: string) => {
+    if (selectedLeaveForReject) {
+      handleReject(selectedLeaveForReject.id, reason);
     }
   };
 
@@ -420,7 +443,7 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleReject(leave.id)}
+                          onClick={() => openRejectDialog(leave)}
                         >
                           <X className="w-4 h-4" />
                         </Button>
@@ -447,6 +470,16 @@ export default function LeaveList({ canApprove = false, canCreate = false, showO
         onClose={() => setIsFormOpen(false)}
         onSave={handleCreateLeave}
         previousLeaveCount={userPreviousLeaveCount}
+      />
+
+      <LeaveRejectDialog
+        open={rejectDialogOpen}
+        onClose={() => {
+          setRejectDialogOpen(false);
+          setSelectedLeaveForReject(null);
+        }}
+        onReject={handleRejectWithReason}
+        employeeName={selectedLeaveForReject?.user_name || ''}
       />
     </div>
   );
