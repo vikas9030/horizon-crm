@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { User, Bell, Shield, Palette, Save, Camera, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Palette, Save, Camera, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Profile settings
@@ -23,6 +24,7 @@ export default function SettingsPage() {
   const [address, setAddress] = useState(user?.address || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -39,6 +41,8 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -86,8 +90,28 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveProfile = () => {
-    toast.success('Profile updated successfully!');
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
+    
+    setIsSavingProfile(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name,
+          phone,
+          address,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      toast.success('Profile updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast.error(error.message || 'Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleSaveNotifications = () => {
@@ -98,7 +122,11 @@ export default function SettingsPage() {
     toast.success('Appearance settings saved!');
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
     if (newPassword !== confirmPassword) {
       toast.error('Passwords do not match!');
       return;
@@ -107,10 +135,61 @@ export default function SettingsPage() {
       toast.error('Password must be at least 6 characters!');
       return;
     }
-    toast.success('Password changed successfully!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    
+    setIsChangingPassword(true);
+    try {
+      // First verify current password by re-authenticating
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error('Current password is incorrect');
+        return;
+      }
+
+      // Update password
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast.success('Password changed successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast.error(error.message || 'Failed to change password');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.id) return;
+    
+    setIsDeletingAccount(true);
+    try {
+      // Call delete-user edge function
+      const { data: session } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('delete-user', {
+        body: { userId: user.id },
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success('Account deleted successfully');
+      await logout();
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      toast.error(error.message || 'Failed to delete account');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   return (
@@ -224,8 +303,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 
-                <Button onClick={handleSaveProfile} className="gradient-primary">
-                  <Save className="w-4 h-4 mr-2" />
+                <Button onClick={handleSaveProfile} className="gradient-primary" disabled={isSavingProfile}>
+                  {isSavingProfile ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   Save Changes
                 </Button>
               </CardContent>
@@ -414,10 +493,41 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 
-                <Button onClick={handleChangePassword} className="gradient-primary">
-                  <Shield className="w-4 h-4 mr-2" />
+                <Button onClick={handleChangePassword} className="gradient-primary" disabled={isChangingPassword}>
+                  {isChangingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
                   Change Password
                 </Button>
+
+                {/* Delete Account Section */}
+                <div className="border-t pt-6 mt-6">
+                  <h4 className="font-medium text-destructive mb-2">Danger Zone</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Once you delete your account, there is no going back. Please be certain.
+                  </p>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" disabled={isDeletingAccount}>
+                        {isDeletingAccount ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                        Delete Account
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete your account
+                          and remove all your data from the system. You will need to create a new admin account to start fresh.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Yes, delete my account
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
