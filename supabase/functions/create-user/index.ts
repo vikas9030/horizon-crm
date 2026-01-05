@@ -119,9 +119,18 @@ serve(async (req) => {
 
     console.log("Auth user created:", newUser.user.id);
 
-    // Generate user_id from name (this will be used for login)
+    // Generate user_id with sequential numbering
     const cleanName = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    const userId = `${cleanName}_${role}_${Date.now().toString().slice(-4)}`;
+    
+    // Get the count of users with this role to generate sequential number
+    const { count, error: countError } = await supabaseAdmin
+      .from("profiles")
+      .select("*", { count: 'exact', head: true })
+      .ilike("user_id", `%_${role}_%`);
+
+    const sequenceNum = (count || 0) + 1;
+    const paddedNum = sequenceNum.toString().padStart(2, '0');
+    const userId = `${cleanName}_${role}_${paddedNum}`;
 
     console.log("Generated user_id:", userId);
 
