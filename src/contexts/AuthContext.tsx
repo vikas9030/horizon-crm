@@ -158,32 +158,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchUserData]);
 
-  // Staff/Manager login with User ID
+  // Staff/Manager login with User ID via edge function
   const loginWithUserId = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // First, look up the email from the profiles table using user_id
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('user_id', userId)
-        .single();
-
-      if (profileError || !profile?.email) {
-        return { success: false, error: 'User ID not found. Please check your User ID and try again.' };
-      }
-
-      // Now login with the email
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: profile.email,
-        password,
+      // Use edge function to login (bypasses RLS for profile lookup)
+      const { data, error } = await supabase.functions.invoke('login-with-userid', {
+        body: { userId, password },
       });
 
       if (error) {
-        return { success: false, error: 'Invalid password. Please try again.' };
+        console.error('Login edge function error:', error);
+        return { success: false, error: error.message || 'Login failed' };
       }
 
-      if (data.user) {
-        await fetchUserData(data.user);
+      if (data?.error) {
+        return { success: false, error: data.error };
+      }
+
+      if (data?.session) {
+        // Set the session directly
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (setSessionError) {
+          return { success: false, error: 'Failed to establish session' };
+        }
+
+        if (data.user) {
+          await fetchUserData(data.user);
+        }
       }
 
       return { success: true };

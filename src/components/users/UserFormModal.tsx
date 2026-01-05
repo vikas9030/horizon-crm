@@ -31,7 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
-const userSchema = z.object({
+const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
@@ -41,7 +41,23 @@ const userSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-type UserFormData = z.infer<typeof userSchema>;
+const editUserSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
+  address: z.string().max(500).optional(),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
+});
+
+type CreateUserFormData = z.infer<typeof createUserSchema>;
+type EditUserFormData = z.infer<typeof editUserSchema>;
+
+interface EditUser {
+  id: string;
+  user_id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+}
 
 interface UserFormModalProps {
   open: boolean;
@@ -55,16 +71,33 @@ interface UserFormModalProps {
     role: UserRole;
     managerId?: string;
   }) => Promise<{ success: boolean; userId?: string }>;
+  onUpdate?: (userId: string, userData: {
+    name: string;
+    phone: string;
+    address: string;
+    newPassword?: string;
+  }) => Promise<{ success: boolean }>;
   managers?: { id: string; name: string }[];
   isSubmitting?: boolean;
+  editUser?: EditUser | null;
 }
 
-export default function UserFormModal({ open, onClose, onSave, managers = [], isSubmitting = false }: UserFormModalProps) {
+export default function UserFormModal({ 
+  open, 
+  onClose, 
+  onSave, 
+  onUpdate,
+  managers = [], 
+  isSubmitting = false,
+  editUser 
+}: UserFormModalProps) {
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   
-  const form = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+  const isEditMode = !!editUser;
+
+  const createForm = useForm<CreateUserFormData>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
       name: '',
       email: '',
@@ -76,31 +109,50 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
     },
   });
 
-  const selectedRole = form.watch('role');
-  const nameValue = form.watch('name');
+  const editForm = useForm<EditUserFormData>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+      address: '',
+      newPassword: '',
+    },
+  });
 
-  // Generate preview user_id
+  const selectedRole = createForm.watch('role');
+  const nameValue = createForm.watch('name');
+
+  // Generate preview user_id with sequential format
   const previewUserId = nameValue 
-    ? `${nameValue.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}_${selectedRole}_XXXX`
+    ? `${nameValue.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}_${selectedRole}_XX`
     : '';
 
   useEffect(() => {
     if (open) {
-      form.reset({
-        name: '',
-        email: '',
-        phone: '',
-        address: '',
-        role: 'staff',
-        managerId: '',
-        password: '',
-      });
+      if (editUser) {
+        editForm.reset({
+          name: editUser.name,
+          phone: editUser.phone || '',
+          address: editUser.address || '',
+          newPassword: '',
+        });
+      } else {
+        createForm.reset({
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          role: 'staff',
+          managerId: '',
+          password: '',
+        });
+      }
       setCreatedUserId(null);
       setCopied(false);
     }
-  }, [open, form]);
+  }, [open, editUser, createForm, editForm]);
 
-  const handleSubmit = async (data: UserFormData) => {
+  const handleCreateSubmit = async (data: CreateUserFormData) => {
     const result = await onSave({
       email: data.email,
       password: data.password,
@@ -113,6 +165,22 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
 
     if (result.success && result.userId) {
       setCreatedUserId(result.userId);
+    }
+  };
+
+  const handleEditSubmit = async (data: EditUserFormData) => {
+    if (!editUser || !onUpdate) return;
+    
+    const result = await onUpdate(editUser.id, {
+      name: data.name,
+      phone: data.phone,
+      address: data.address || '',
+      newPassword: data.newPassword || undefined,
+    });
+
+    if (result.success) {
+      toast.success('User updated successfully!');
+      handleClose();
     }
   };
 
@@ -188,6 +256,106 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
     );
   }
 
+  // Edit mode form
+  if (isEditMode) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-lg max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Edit User: {editUser.name}</DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[70vh] pr-4">
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+                <div className="p-3 rounded-lg bg-muted">
+                  <label className="text-xs font-medium text-muted-foreground">User ID</label>
+                  <p className="font-mono text-sm mt-1">{editUser.user_id}</p>
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter full name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter phone number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Leave empty to keep current password" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Enter a new password only if you want to change it.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="btn-accent" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update User'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Create mode form
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh]">
@@ -196,10 +364,10 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <Form {...createForm}>
+            <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -223,7 +391,7 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
               )}
 
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -240,7 +408,7 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
               />
 
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
@@ -257,7 +425,7 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
               />
 
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
@@ -271,7 +439,7 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
               />
 
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="address"
                 render={({ field }) => (
                   <FormItem>
@@ -285,7 +453,7 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
               />
 
               <FormField
-                control={form.control}
+                control={createForm.control}
                 name="role"
                 render={({ field }) => (
                   <FormItem>
@@ -308,7 +476,7 @@ export default function UserFormModal({ open, onClose, onSave, managers = [], is
 
               {selectedRole === 'staff' && managers.length > 0 && (
                 <FormField
-                  control={form.control}
+                  control={createForm.control}
                   name="managerId"
                   render={({ field }) => (
                     <FormItem>

@@ -163,6 +163,37 @@ export default function UserList() {
     }
   };
 
+  const handleUpdateUser = async (
+    userId: string,
+    userData: { name: string; phone: string; address: string; newPassword?: string }
+  ): Promise<{ success: boolean }> => {
+    try {
+      setIsSubmitting(true);
+      
+      const { data, error } = await supabase.functions.invoke('update-user', {
+        body: { userId, ...userData },
+      });
+
+      if (error) {
+        toast.error('Failed to update user', { description: error.message });
+        return { success: false };
+      }
+
+      if (data?.error) {
+        toast.error('Failed to update user', { description: data.error });
+        return { success: false };
+      }
+
+      await fetchUsers();
+      return { success: true };
+    } catch (error: any) {
+      toast.error('Error updating user', { description: error.message });
+      return { success: false };
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleToggleStatus = async (user: DBUser) => {
     try {
       const newStatus = user.status === 'active' ? 'inactive' : 'active';
@@ -332,6 +363,12 @@ export default function UserList() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
+                        onClick={() => setEditingUser(user)}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit User
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
                         onClick={() => handleToggleStatus(user)}
                       >
                         <UserX className="w-4 h-4 mr-2" />
@@ -361,11 +398,13 @@ export default function UserList() {
       </div>
 
       <UserFormModal
-        open={isFormOpen}
+        open={isFormOpen || !!editingUser}
         onClose={() => { setIsFormOpen(false); setEditingUser(null); }}
         onSave={handleSaveUser}
+        onUpdate={handleUpdateUser}
         managers={managers.map(m => ({ id: m.id, name: m.name }))}
         isSubmitting={isSubmitting}
+        editUser={editingUser}
       />
 
       <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
