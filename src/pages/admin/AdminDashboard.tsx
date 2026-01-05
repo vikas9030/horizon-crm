@@ -7,13 +7,13 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
-import { mockProjects, mockActivities, mockUsers } from '@/data/mockData';
+import { mockActivities } from '@/data/mockData';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { leads, tasks } = useData();
+  const { leads, tasks, projects } = useData();
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [teamCount, setTeamCount] = useState(0);
 
@@ -32,7 +32,7 @@ export default function AdminDashboard() {
         .from('profiles')
         .select('id');
       
-      setTeamCount(profilesData?.length || mockUsers.filter(u => u.role !== 'admin').length);
+      setTeamCount(profilesData?.length || 0);
     };
 
     fetchStats();
@@ -72,8 +72,8 @@ export default function AdminDashboard() {
           />
           <StatCard
             title="Projects"
-            value={mockProjects.length}
-            change={`${mockProjects.filter(p => p.status === 'ongoing').length} ongoing`}
+            value={projects.length}
+            change={`${projects.filter(p => p.status === 'ongoing').length} ongoing`}
             changeType="neutral"
             icon={Building}
             iconColor="gradient-accent"
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
           <TaskStatusChart tasks={tasks} />
 
           {/* Projects by Status Chart - Interactive */}
-          <ProjectStatusChart projects={mockProjects} />
+          <ProjectStatusChart projects={projects} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

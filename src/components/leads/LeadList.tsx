@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Lead } from "@/types";
-import { mockProjects } from "@/data/mockData";
 import LeadStatusChip from "./LeadStatusChip";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailsModal from "./LeadDetailsModal";
@@ -63,7 +62,7 @@ export default function LeadList({
   isManagerView = false,
 }: LeadListProps) {
   const { user } = useAuth();
-  const { leads, addLead, updateLead, deleteLead } = useData();
+  const { leads, projects, addLead, updateLead, deleteLead } = useData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -97,24 +96,24 @@ export default function LeadList({
     });
   }, [leads, searchQuery, statusFilter, projectFilter, dateRange]);
 
-  const handleSaveLead = (leadData: Partial<Lead>) => {
-    if (editingLead) {
-      updateLead(editingLead.id, leadData);
-      toast.success("Lead updated successfully");
-    } else {
-      const newLead: Lead = {
-        ...(leadData as Lead),
-        id: String(Date.now()),
-        notes: [],
-        createdBy: user?.id || "unknown",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      addLead(newLead);
-      toast.success("Lead created successfully");
+  const handleSaveLead = async (leadData: Partial<Lead>) => {
+    try {
+      if (editingLead) {
+        await updateLead(editingLead.id, leadData);
+        toast.success("Lead updated successfully");
+      } else {
+        await addLead({
+          ...(leadData as Lead),
+          notes: [],
+          createdBy: user?.id || "unknown",
+        });
+        toast.success("Lead created successfully");
+      }
+      setIsFormOpen(false);
+      setEditingLead(null);
+    } catch (error) {
+      // Error already shown by DataContext
     }
-    setIsFormOpen(false);
-    setEditingLead(null);
   };
 
   const handleConvertToTask = (lead: Lead) => {
@@ -123,9 +122,13 @@ export default function LeadList({
     });
   };
 
-  const handleDeleteLead = (lead: Lead) => {
-    deleteLead(lead.id);
-    toast.success("Lead deleted successfully");
+  const handleDeleteLead = async (lead: Lead) => {
+    try {
+      await deleteLead(lead.id);
+      toast.success("Lead deleted successfully");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
   };
 
   const formatBudget = (min: number, max: number) => {
@@ -140,27 +143,31 @@ export default function LeadList({
 
   const getProjectName = (projectId?: string) => {
     if (!projectId) return "-";
-    const project = mockProjects.find((p) => p.id === projectId);
+    const project = projects.find((p) => p.id === projectId);
     return project ? project.name : "-";
   };
 
-  const handleStatusChange = (leadId: string, newStatus: Lead["status"]) => {
-    updateLead(leadId, { status: newStatus, updatedAt: new Date() });
-    toast.success("Lead status updated");
+  const handleStatusChange = async (leadId: string, newStatus: Lead["status"]) => {
+    try {
+      await updateLead(leadId, { status: newStatus });
+      toast.success("Lead status updated");
+    } catch (error) {
+      // Error already shown by DataContext
+    }
   };
 
-  const handleImportLeads = (importedLeads: Partial<Lead>[]) => {
-    importedLeads.forEach((leadData, index) => {
-      const newLead: Lead = {
-        ...(leadData as Lead),
-        id: String(Date.now() + index),
-        notes: [],
-        createdBy: user?.id || "unknown",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      addLead(newLead);
-    });
+  const handleImportLeads = async (importedLeads: Partial<Lead>[]) => {
+    for (const leadData of importedLeads) {
+      try {
+        await addLead({
+          ...(leadData as Lead),
+          notes: [],
+          createdBy: user?.id || "unknown",
+        });
+      } catch (error) {
+        // Continue with next lead
+      }
+    }
   };
 
   return (
@@ -198,7 +205,7 @@ export default function LeadList({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {mockProjects.map((project) => (
+                {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
                   </SelectItem>

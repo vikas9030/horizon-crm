@@ -6,30 +6,54 @@ import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
-import { mockUsers } from '@/data/mockData';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
+import { Building, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
+interface StaffMember {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
 export default function ManagerDashboard() {
-  const { leads, tasks, announcements } = useData();
+  const { leads, tasks, projects, announcements } = useData();
   const [pendingLeaves, setPendingLeaves] = useState(0);
-  
-  const staffMembers = mockUsers.filter(u => u.role === 'staff');
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
 
   useEffect(() => {
-    const fetchPendingLeaves = async () => {
-      const { data } = await supabase
+    const fetchData = async () => {
+      // Fetch pending leaves for staff
+      const { data: leavesData } = await supabase
         .from('leaves')
         .select('id')
         .eq('status', 'pending')
         .eq('user_role', 'staff');
       
-      setPendingLeaves(data?.length || 0);
+      setPendingLeaves(leavesData?.length || 0);
+
+      // Fetch staff members from profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, email');
+      
+      if (profilesData) {
+        // Filter for staff members (non-admin, non-manager)
+        const staffList: StaffMember[] = [];
+        for (const profile of profilesData) {
+          const { data: roleData } = await supabase.rpc('get_user_role', {
+            _user_id: profile.id
+          });
+          if (roleData === 'staff') {
+            staffList.push(profile);
+          }
+        }
+        setStaffMembers(staffList);
+      }
     };
 
-    fetchPendingLeaves();
+    fetchData();
   }, []);
 
   const activeTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length;
@@ -51,10 +75,10 @@ export default function ManagerDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Projects"
-            value={staffMembers.length}
-            change="Active projects"
+            value={projects.length}
+            change={`${projects.filter(p => p.status === 'ongoing').length} ongoing`}
             changeType="neutral"
-            icon={Users}
+            icon={Building}
             iconColor="gradient-primary"
             delay={0}
             href="/manager/projects"
@@ -96,15 +120,21 @@ export default function ManagerDashboard() {
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4">Staff Performance</h3>
             <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={staffPerformance}>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="leads" fill="hsl(215, 80%, 35%)" name="Leads" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="tasks" fill="hsl(38, 95%, 55%)" name="Tasks" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {staffPerformance.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={staffPerformance}>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="leads" fill="hsl(215, 80%, 35%)" name="Leads" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="tasks" fill="hsl(38, 95%, 55%)" name="Tasks" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No staff data available
+                </div>
+              )}
             </div>
           </div>
 
@@ -138,7 +168,7 @@ export default function ManagerDashboard() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-foreground">{staff.name}</p>
-                      <p className="text-sm text-muted-foreground">{staff.email}</p>
+                      <p className="text-sm text-muted-foreground">{staff.email || 'No email'}</p>
                     </div>
                     <div className="flex gap-6 text-center">
                       <div>

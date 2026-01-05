@@ -1,10 +1,16 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, Lead } from '@/types';
+import { Lead } from '@/types';
 import { Target } from 'lucide-react';
 
+interface TeamMember {
+  id: string;
+  name: string;
+  role: 'manager' | 'staff';
+}
+
 interface DailyLeadsPercentageChartProps {
-  users: User[];
+  users: TeamMember[];
   leads: Lead[];
   dailyTarget?: number;
 }

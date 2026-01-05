@@ -1,28 +1,19 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, Leave } from '@/types';
+import { Leave } from '@/types';
 import { format, startOfMonth, endOfMonth, isWithinInterval, differenceInDays } from 'date-fns';
 import { CalendarDays } from 'lucide-react';
 
-interface MonthlyLeavesChartProps {
-  users: User[];
-  leaves: Leave[];
-  selectedMonth?: Date;
+interface TeamMember {
+  id: string;
+  name: string;
+  role: 'manager' | 'staff';
 }
 
-interface LeaveRecord {
-  id: string;
-  user_id: string;
-  user_name: string;
-  user_role: string;
-  leave_type: string;
-  start_date: string;
-  end_date: string;
-  reason: string;
-  status: string;
-  document_url?: string | null;
-  approved_by?: string | null;
-  created_at: string;
+interface MonthlyLeavesChartProps {
+  users: TeamMember[];
+  leaves: Leave[];
+  selectedMonth?: Date;
 }
 
 const COLORS = [

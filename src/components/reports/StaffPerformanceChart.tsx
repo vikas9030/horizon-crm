@@ -1,9 +1,15 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Lead, Task } from '@/types';
+import { Lead, Task } from '@/types';
+
+interface TeamMember {
+  id: string;
+  name: string;
+  role: 'manager' | 'staff';
+}
 
 interface StaffPerformanceChartProps {
-  users: User[];
+  users: TeamMember[];
   leads: Lead[];
   tasks: Task[];
 }
