@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useState, useCallback } from
 import { Announcement, Lead, Project, Task } from '@/types';
 import { mockAnnouncements, mockLeads, mockProjects, mockTasks } from '@/data/mockData';
 import { useNotifications } from './NotificationContext';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
   leads: Lead[];

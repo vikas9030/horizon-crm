@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
@@ -6,11 +7,41 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import ProjectStatusChart from '@/components/dashboard/ProjectStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
-import { mockLeads, mockTasks, mockProjects, mockLeaves, mockActivities } from '@/data/mockData';
+import { mockProjects, mockActivities, mockUsers } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/integrations/supabase/client';
 import { ClipboardList, CheckSquare, Building, CalendarOff, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const pendingLeaves = mockLeaves.filter(l => l.status === 'pending').length;
+  const { leads, tasks } = useData();
+  const [pendingLeaves, setPendingLeaves] = useState(0);
+  const [teamCount, setTeamCount] = useState(0);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      // Fetch pending leaves count
+      const { data: leavesData } = await supabase
+        .from('leaves')
+        .select('id')
+        .eq('status', 'pending');
+      
+      setPendingLeaves(leavesData?.length || 0);
+
+      // Fetch team members count (staff + managers)
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id');
+      
+      setTeamCount(profilesData?.length || mockUsers.filter(u => u.role !== 'admin').length);
+    };
+
+    fetchStats();
+  }, []);
+
+  const activeTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length;
+  const conversionRate = leads.length > 0 
+    ? Math.round((tasks.filter(t => t.status === 'completed').length / leads.length) * 100) 
+    : 0;
 
   return (
     <div className="min-h-screen">
@@ -21,9 +52,9 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
             title="Total Leads"
-            value={mockLeads.length}
-            change="+12% from last month"
-            changeType="positive"
+            value={leads.length}
+            change={leads.length > 0 ? `${leads.length} total` : "No leads yet"}
+            changeType="neutral"
             icon={ClipboardList}
             iconColor="gradient-primary"
             delay={0}
@@ -31,8 +62,8 @@ export default function AdminDashboard() {
           />
           <StatCard
             title="Active Tasks"
-            value={mockTasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length}
-            change="3 due this week"
+            value={activeTasks}
+            change={activeTasks > 0 ? "In progress" : "No active tasks"}
             changeType="neutral"
             icon={CheckSquare}
             iconColor="bg-info"
@@ -52,7 +83,7 @@ export default function AdminDashboard() {
           <StatCard
             title="Pending Leaves"
             value={pendingLeaves}
-            change="Requires attention"
+            change={pendingLeaves > 0 ? "Requires attention" : "No pending"}
             changeType={pendingLeaves > 0 ? 'negative' : 'neutral'}
             icon={CalendarOff}
             iconColor="bg-warning"
@@ -61,8 +92,8 @@ export default function AdminDashboard() {
           />
           <StatCard
             title="Team Members"
-            value={3}
-            change="1 manager, 2 staff"
+            value={teamCount}
+            change="Managers + Staff"
             changeType="neutral"
             icon={Users}
             iconColor="bg-primary"
@@ -71,9 +102,9 @@ export default function AdminDashboard() {
           />
           <StatCard
             title="Conversion Rate"
-            value="24%"
-            change="+5% from last month"
-            changeType="positive"
+            value={`${conversionRate}%`}
+            change={leads.length > 0 ? "Based on completed tasks" : "No data"}
+            changeType="neutral"
             icon={TrendingUp}
             iconColor="gradient-success"
             delay={250}
@@ -83,10 +114,10 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Leads by Status Chart - Interactive */}
-          <LeadStatusChart leads={mockLeads} />
+          <LeadStatusChart leads={leads} />
 
           {/* Tasks by Status Chart - Interactive */}
-          <TaskStatusChart tasks={mockTasks} />
+          <TaskStatusChart tasks={tasks} />
 
           {/* Projects by Status Chart - Interactive */}
           <ProjectStatusChart projects={mockProjects} />
@@ -94,7 +125,7 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Reminders Widget */}
-          <RemindersWidget leads={mockLeads} tasks={mockTasks} />
+          <RemindersWidget leads={leads} tasks={tasks} />
 
           {/* Activity Feed */}
           <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
@@ -102,7 +133,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Calendar View */}
-        <CalendarView leads={mockLeads} tasks={mockTasks} title="All Events Calendar" />
+        <CalendarView leads={leads} tasks={tasks} title="All Events Calendar" />
       </div>
     </div>
     </div>

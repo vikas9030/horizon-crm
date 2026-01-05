@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import { UserRole } from '@/types';
@@ -11,9 +11,11 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, session } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
+  // Show loading while auth is being determined
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -22,8 +24,18 @@ export default function DashboardLayout({ requiredRole }: DashboardLayoutProps) 
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  // Only redirect if not loading AND definitely not authenticated
+  if (!isLoading && !isAuthenticated && !session) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // Wait for user data if we have a session but no user yet
+  if (session && !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (user?.role !== requiredRole) {

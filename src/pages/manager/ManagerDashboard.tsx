@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
@@ -5,18 +6,38 @@ import TaskStatusChart from '@/components/dashboard/TaskStatusChart';
 import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
-import { mockLeads, mockTasks, mockLeaves, mockUsers, mockAnnouncements } from '@/data/mockData';
+import { mockUsers } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Users, ClipboardList, CheckSquare, CalendarOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ManagerDashboard() {
+  const { leads, tasks, announcements } = useData();
+  const [pendingLeaves, setPendingLeaves] = useState(0);
+  
   const staffMembers = mockUsers.filter(u => u.role === 'staff');
-  const pendingStaffLeaves = mockLeaves.filter(l => l.userRole === 'staff' && l.status === 'pending').length;
+
+  useEffect(() => {
+    const fetchPendingLeaves = async () => {
+      const { data } = await supabase
+        .from('leaves')
+        .select('id')
+        .eq('status', 'pending')
+        .eq('user_role', 'staff');
+      
+      setPendingLeaves(data?.length || 0);
+    };
+
+    fetchPendingLeaves();
+  }, []);
+
+  const activeTasks = tasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length;
 
   const staffPerformance = staffMembers.map(staff => ({
     name: staff.name.split(' ')[0],
-    leads: mockLeads.filter(l => l.createdBy === staff.id).length,
-    tasks: mockTasks.filter(t => t.assignedTo === staff.id).length,
+    leads: leads.filter(l => l.createdBy === staff.id).length,
+    tasks: tasks.filter(t => t.assignedTo === staff.id).length,
   }));
 
   return (
@@ -25,7 +46,7 @@ export default function ManagerDashboard() {
       
       <div className="p-6 space-y-6">
         {/* Announcements */}
-        <AnnouncementBanner announcements={mockAnnouncements} userRole="manager" />
+        <AnnouncementBanner announcements={announcements} userRole="manager" />
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -40,7 +61,7 @@ export default function ManagerDashboard() {
           />
           <StatCard
             title="Total Leads"
-            value={mockLeads.length}
+            value={leads.length}
             change="Created by team"
             changeType="neutral"
             icon={ClipboardList}
@@ -50,7 +71,7 @@ export default function ManagerDashboard() {
           />
           <StatCard
             title="Active Tasks"
-            value={mockTasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length}
+            value={activeTasks}
             change="In progress"
             changeType="neutral"
             icon={CheckSquare}
@@ -60,9 +81,9 @@ export default function ManagerDashboard() {
           />
           <StatCard
             title="Pending Leaves"
-            value={pendingStaffLeaves}
+            value={pendingLeaves}
             change="Awaiting approval"
-            changeType={pendingStaffLeaves > 0 ? 'negative' : 'neutral'}
+            changeType={pendingLeaves > 0 ? 'negative' : 'neutral'}
             icon={CalendarOff}
             iconColor="bg-warning"
             delay={150}
@@ -88,23 +109,23 @@ export default function ManagerDashboard() {
           </div>
 
           {/* Leads by Status Chart - Interactive */}
-          <LeadStatusChart leads={mockLeads} title="Team Leads by Status" />
+          <LeadStatusChart leads={leads} title="Team Leads by Status" />
 
           {/* Tasks by Status Chart - Interactive */}
-          <TaskStatusChart tasks={mockTasks} title="Team Tasks by Status" />
+          <TaskStatusChart tasks={tasks} title="Team Tasks by Status" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Reminders Widget */}
-          <RemindersWidget leads={mockLeads} tasks={mockTasks} />
+          <RemindersWidget leads={leads} tasks={tasks} />
 
           {/* Team Overview */}
           <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
             <h3 className="text-lg font-semibold text-foreground mb-4">Team Overview</h3>
             <div className="space-y-4 max-h-80 overflow-y-auto">
-              {staffMembers.map((staff, index) => {
-                const staffLeads = mockLeads.filter(l => l.createdBy === staff.id).length;
-                const staffTasks = mockTasks.filter(t => t.assignedTo === staff.id).length;
+              {staffMembers.length > 0 ? staffMembers.map((staff, index) => {
+                const staffLeads = leads.filter(l => l.createdBy === staff.id).length;
+                const staffTasks = tasks.filter(t => t.assignedTo === staff.id).length;
                 
                 return (
                   <div 
@@ -131,13 +152,17 @@ export default function ManagerDashboard() {
                     </div>
                   </div>
                 );
-              })}
+              }) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No staff members found
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Calendar View */}
-        <CalendarView leads={mockLeads} tasks={mockTasks} title="Team Calendar" />
+        <CalendarView leads={leads} tasks={tasks} title="Team Calendar" />
       </div>
     </div>
   );

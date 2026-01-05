@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import TopBar from '@/components/layout/TopBar';
 import StatCard from '@/components/dashboard/StatCard';
 import AnnouncementBanner from '@/components/announcements/AnnouncementBanner';
@@ -6,36 +7,55 @@ import LeadStatusChart from '@/components/dashboard/LeadStatusChart';
 import RemindersWidget from '@/components/dashboard/RemindersWidget';
 import CalendarView from '@/components/dashboard/CalendarView';
 import LeaveStatsWidget from '@/components/dashboard/LeaveStatsWidget';
-import { mockLeads, mockTasks, mockLeaves, mockAnnouncements } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/integrations/supabase/client';
 import { ClipboardList, CheckSquare, CalendarOff, Bell, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import LeadStatusChip from '@/components/leads/LeadStatusChip';
 import TaskStatusChip from '@/components/tasks/TaskStatusChip';
+
 export default function StaffDashboard() {
   const { user } = useAuth();
+  const { leads, tasks, announcements } = useData();
+  const [pendingLeaves, setPendingLeaves] = useState(0);
   
-  // Filter data for current staff
-  const myLeads = mockLeads.filter(l => l.createdBy === user?.id || l.createdBy === '3');
-  const myTasks = mockTasks.filter(t => t.assignedTo === user?.id || t.assignedTo === '3');
-  const myLeaves = mockLeaves.filter(l => l.userId === user?.id || l.userId === '3');
+  useEffect(() => {
+    const fetchPendingLeaves = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from('leaves')
+        .select('id')
+        .eq('status', 'pending')
+        .eq('user_id', user.id);
+      
+      setPendingLeaves(data?.length || 0);
+    };
 
-  const pendingLeaves = myLeaves.filter(l => l.status === 'pending').length;
+    fetchPendingLeaves();
+  }, [user]);
+  
+  // Filter data for current staff - show all data visible to staff
+  const myLeads = leads.filter(l => l.createdBy === user?.id);
+  const myTasks = tasks.filter(t => t.assignedTo === user?.id);
+  const activeTasks = myTasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length;
+  const reminders = myLeads.filter(l => l.status === 'reminder').length;
 
   return (
     <div className="min-h-screen">
-      <TopBar title="Staff Dashboard" subtitle={`Welcome back, ${user?.name}!`} />
+      <TopBar title="Staff Dashboard" subtitle={`Welcome back, ${user?.name || 'User'}!`} />
       
       <div className="p-6 space-y-6">
         {/* Announcements */}
-        <AnnouncementBanner announcements={mockAnnouncements} userRole="staff" />
+        <AnnouncementBanner announcements={announcements} userRole="staff" />
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="My Leads"
             value={myLeads.length}
-            change={`${myLeads.filter(l => l.status === 'interested').length} interested`}
-            changeType="positive"
+            change={myLeads.length > 0 ? `${myLeads.filter(l => l.status === 'interested').length} interested` : "No leads yet"}
+            changeType="neutral"
             icon={ClipboardList}
             iconColor="gradient-primary"
             delay={0}
@@ -43,8 +63,8 @@ export default function StaffDashboard() {
           />
           <StatCard
             title="Active Tasks"
-            value={myTasks.filter(t => t.status !== 'completed' && t.status !== 'rejected').length}
-            change="In progress"
+            value={activeTasks}
+            change={activeTasks > 0 ? "In progress" : "No active tasks"}
             changeType="neutral"
             icon={CheckSquare}
             iconColor="gradient-accent"
@@ -53,8 +73,8 @@ export default function StaffDashboard() {
           />
           <StatCard
             title="Reminders"
-            value={myLeads.filter(l => l.status === 'reminder').length}
-            change="Follow-ups pending"
+            value={reminders}
+            change={reminders > 0 ? "Follow-ups pending" : "No reminders"}
             changeType="neutral"
             icon={Bell}
             iconColor="bg-info"
@@ -130,27 +150,33 @@ export default function StaffDashboard() {
               My Recent Leads
             </h3>
             
-            <div className="space-y-3">
-              {myLeads.slice(0, 5).map((lead, index) => (
-                <div 
-                  key={lead.id}
-                  className="flex items-center gap-4 p-3 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground truncate">{lead.name}</p>
-                      <LeadStatusChip status={lead.status} />
+            {myLeads.length > 0 ? (
+              <div className="space-y-3">
+                {myLeads.slice(0, 5).map((lead, index) => (
+                  <div 
+                    key={lead.id}
+                    className="flex items-center gap-4 p-3 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200 animate-fade-in"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground truncate">{lead.name}</p>
+                        <LeadStatusChip status={lead.status} />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{lead.phone}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">{lead.phone}</p>
+                    <div className="text-right text-sm text-muted-foreground shrink-0">
+                      <p className="capitalize">{lead.requirementType}</p>
+                      <p className="text-xs">{format(lead.createdAt, 'MMM dd')}</p>
+                    </div>
                   </div>
-                  <div className="text-right text-sm text-muted-foreground shrink-0">
-                    <p className="capitalize">{lead.requirementType}</p>
-                    <p className="text-xs">{format(lead.createdAt, 'MMM dd')}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No leads created yet
+              </div>
+            )}
           </div>
 
           {/* Leave Stats Widget */}
