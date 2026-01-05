@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          accent_color: string
+          app_name: string
+          created_at: string
+          custom_css: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string
+          sidebar_color: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string
+          app_name?: string
+          created_at?: string
+          custom_css?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          sidebar_color?: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string
+          app_name?: string
+          created_at?: string
+          custom_css?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          sidebar_color?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       leaves: {
         Row: {
           approved_by: string | null

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppSettings } from '@/contexts/AppSettingsContext';
 import { cn } from '@/lib/utils';
 import {
   Building2,
@@ -18,6 +19,7 @@ import {
   ChevronRight,
   Megaphone,
   Bell,
+  Palette,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { mockLeads, mockTasks } from '@/data/mockData';
@@ -56,6 +58,7 @@ const getRemindersCount = () => {
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'staff'], getBadge: getRemindersCount },
   { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
+  { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
   { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'staff'] },
   { label: 'Leads', icon: ClipboardList, href: '/leads', roles: ['admin', 'manager', 'staff'] },
   { label: 'Tasks', icon: CheckSquare, href: '/tasks', roles: ['admin', 'manager', 'staff'] },
@@ -71,6 +74,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const { user, logout } = useAuth();
+  const { settings } = useAppSettings();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
@@ -105,12 +109,16 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       {/* Logo */}
       <div className="p-4 md:p-6 border-b border-sidebar-border">
         <Link to={basePath} className="flex items-center gap-3" onClick={handleNavClick}>
-          <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center shrink-0">
-            <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
-          </div>
+          {settings?.logo_url ? (
+            <img src={settings.logo_url} alt={settings.app_name} className="w-10 h-10 object-contain rounded-xl shrink-0" />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
+            </div>
+          )}
           {!collapsed && (
             <span className="text-lg md:text-xl font-bold text-sidebar-foreground animate-fade-in">
-              PropertyCRM
+              {settings?.app_name || 'PropertyCRM'}
             </span>
           )}
         </Link>
