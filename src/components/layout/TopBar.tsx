@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useMobileNav } from '@/contexts/MobileNavContext';
+
 interface TopBarProps {
   title: string;
   subtitle?: string;
@@ -34,40 +35,40 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
   };
 
   return (
-      <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-40">
+    <header className="h-14 md:h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
-        {/* Mobile Hamburger (dashboard pages) */}
-        {!showBackButton && mobileNav && (
+        {/* Mobile Hamburger - Always show on mobile */}
+        {mobileNav && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 md:h-10 md:w-10 lg:hidden"
+            className="h-8 w-8 md:h-10 md:w-10 lg:hidden shrink-0"
             onClick={() => mobileNav.setMobileMenuOpen(!mobileNav.mobileMenuOpen)}
             aria-label="Open menu"
           >
-            <Menu className="w-4 h-4 md:w-5 md:h-5" />
+            <Menu className="w-5 h-5" />
           </Button>
         )}
 
-        {/* Back Button - show on non-dashboard pages */}
+        {/* Back Button - show on non-dashboard pages on desktop only */}
         {showBackButton && !isDashboard && (
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={handleBack}
-            className="hover:bg-muted h-8 w-8 md:h-10 md:w-10"
+            className="hover:bg-muted h-8 w-8 md:h-10 md:w-10 hidden lg:flex"
           >
             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         )}
         
-        <div>
-          <h1 className="text-base md:text-xl font-bold text-foreground truncate max-w-[180px] sm:max-w-none">{title}</h1>
-          {subtitle && <p className="text-xs text-muted-foreground hidden sm:block">{subtitle}</p>}
+        <div className="min-w-0">
+          <h1 className="text-base md:text-xl font-bold text-foreground truncate">{title}</h1>
+          {subtitle && <p className="text-xs text-muted-foreground hidden sm:block truncate">{subtitle}</p>}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-4 shrink-0">
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
@@ -82,7 +83,7 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
             <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
               <Bell className="w-4 h-4 md:w-5 md:h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 md:top-1 md:right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute -top-0.5 -right-0.5 md:top-0 md:right-0 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -141,11 +142,11 @@ export default function TopBar({ title, subtitle, showBackButton = true }: TopBa
         </Popover>
 
         <div className="hidden sm:flex items-center gap-2 md:gap-3 pl-2 md:pl-4 border-l border-border">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-sm md:text-base">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-sm md:text-base shrink-0">
             {user?.name.charAt(0)}
           </div>
-          <div className="hidden lg:block">
-            <p className="text-sm font-medium text-foreground">{user?.name}</p>
+          <div className="hidden lg:block min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
             <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
           </div>
         </div>

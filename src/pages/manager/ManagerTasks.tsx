@@ -4,9 +4,9 @@ import TaskList from "@/components/tasks/TaskList";
 export default function ManagerTasks() {
   return (
     <div className="min-h-screen">
-      <TopBar title="Tasks" subtitle="View tasks" />
+      <TopBar title="Tasks" subtitle="Manage tasks" />
       <div className="p-4 md:p-6">
-        <TaskList canCreate={false} canEdit={false} isManagerView />
+        <TaskList canCreate canEdit />
       </div>
     </div>
   );

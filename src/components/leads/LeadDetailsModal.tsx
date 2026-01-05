@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import LeadStatusChip from './LeadStatusChip';
@@ -20,7 +21,8 @@ import {
   Calendar, 
   MessageSquare,
   Clock,
-  FileText
+  FileText,
+  Edit
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -29,9 +31,11 @@ interface LeadDetailsModalProps {
   onClose: () => void;
   lead: Lead | null;
   isManagerView?: boolean;
+  onEdit?: () => void;
+  canEdit?: boolean;
 }
 
-export default function LeadDetailsModal({ open, onClose, lead, isManagerView = false }: LeadDetailsModalProps) {
+export default function LeadDetailsModal({ open, onClose, lead, isManagerView = false, onEdit, canEdit = true }: LeadDetailsModalProps) {
   if (!lead) return null;
 
   const formatBudget = (min: number, max: number) => {
@@ -55,22 +59,30 @@ export default function LeadDetailsModal({ open, onClose, lead, isManagerView = 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <span className="text-xl">{lead.name}</span>
-              <div className="flex items-center gap-2 mt-1">
-                <LeadStatusChip status={lead.status} />
-                {lead.source && (
-                  <Badge variant="outline" className="text-xs">
-                    {sourceLabels[lead.source] || lead.source}
-                  </Badge>
-                )}
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 text-primary" />
               </div>
-            </div>
-          </DialogTitle>
+              <div className="min-w-0">
+                <span className="text-xl truncate block">{lead.name}</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <LeadStatusChip status={lead.status} />
+                  {lead.source && (
+                    <Badge variant="outline" className="text-xs">
+                      {sourceLabels[lead.source] || lead.source}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </DialogTitle>
+            {canEdit && onEdit && (
+              <Button variant="outline" size="sm" onClick={onEdit} className="shrink-0">
+                <Edit className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">

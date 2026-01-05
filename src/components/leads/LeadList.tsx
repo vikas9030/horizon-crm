@@ -479,12 +479,13 @@ export default function LeadList({
         open={!!viewingLead}
         onClose={() => setViewingLead(null)}
         lead={viewingLead}
-        onEdit={() => {
+        canEdit={canEdit}
+        onEdit={canEdit ? () => {
           if (!viewingLead) return;
           setEditingLead(viewingLead);
           setViewingLead(null);
           setIsFormOpen(true);
-        }}
+        } : undefined}
       />
     </div>
   );

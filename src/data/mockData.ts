@@ -46,8 +46,9 @@ export const mockUsers: User[] = [
     status: 'active',
     password: 'manager123',
     permissions: [
-      { module: 'leads', actions: ['view'] },
-      { module: 'tasks', actions: ['view'] },
+      { module: 'leads', actions: ['view', 'create', 'edit'] },
+      { module: 'tasks', actions: ['view', 'create', 'edit'] },
+      { module: 'projects', actions: ['view'] },
       { module: 'leaves', actions: ['view', 'approve'] },
       { module: 'reports', actions: ['view'] },
     ],
