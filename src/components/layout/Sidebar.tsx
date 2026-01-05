@@ -85,10 +85,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   if (!user) return null;
 
   const basePath = `/${user.role}`;
-  const filteredNavItems = navItems.filter(item => item.roles.includes(user.role));
+  const filteredNavItems = navItems.filter(item => item.roles.includes(user.role as 'admin' | 'manager' | 'staff'));
 
   const handleNavClick = () => {
     onNavigate?.();
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -177,7 +181,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               <Link to={`${basePath}/settings`} className="nav-link flex-1 justify-center" onClick={handleNavClick}>
                 <Settings className="w-5 h-5" />
               </Link>
-              <button onClick={logout} className="nav-link flex-1 justify-center hover:text-destructive">
+              <button onClick={handleLogout} className="nav-link flex-1 justify-center hover:text-destructive">
                 <LogOut className="w-5 h-5" />
               </button>
             </>

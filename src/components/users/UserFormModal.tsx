@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { User, UserRole, Permission } from '@/types';
+import { useEffect } from 'react';
+import { UserRole } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,18 +27,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { generateUserId } from '@/data/mockData';
-import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address').max(255).optional().or(z.literal('')),
+  email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone must be at least 10 digits').max(20),
   address: z.string().max(500).optional(),
   role: z.enum(['manager', 'staff'] as const),
-  status: z.enum(['active', 'inactive'] as const),
   managerId: z.string().optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -46,25 +44,20 @@ type UserFormData = z.infer<typeof userSchema>;
 interface UserFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (userData: Partial<User>) => void;
-  user?: User | null;
-  managers?: User[];
-  existingUserIds?: string[];
+  onSave: (userData: {
+    email: string;
+    password: string;
+    name: string;
+    phone: string;
+    address: string;
+    role: UserRole;
+    managerId?: string;
+  }) => void;
+  managers?: { id: string; name: string }[];
+  isSubmitting?: boolean;
 }
 
-const moduleOptions = [
-  { value: 'leads', label: 'Leads' },
-  { value: 'tasks', label: 'Tasks' },
-  { value: 'projects', label: 'Projects' },
-  { value: 'leaves', label: 'Leaves' },
-  { value: 'reports', label: 'Reports' },
-] as const;
-
-const actionOptions = ['view', 'create', 'edit', 'delete', 'approve'] as const;
-
-export default function UserFormModal({ open, onClose, onSave, user, managers = [], existingUserIds = [] }: UserFormModalProps) {
-  const [generatedUserId, setGeneratedUserId] = useState<string>('');
-  
+export default function UserFormModal({ open, onClose, onSave, managers = [], isSubmitting = false }: UserFormModalProps) {
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -73,85 +66,44 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
       phone: '',
       address: '',
       role: 'staff',
-      status: 'active',
       managerId: '',
       password: '',
     },
   });
 
   const selectedRole = form.watch('role');
-  const nameValue = form.watch('name');
-
-  // Auto-generate userId when name changes (only for new users)
-  useEffect(() => {
-    if (!user && nameValue && nameValue.length >= 2) {
-      const newUserId = generateUserId(nameValue, existingUserIds);
-      setGeneratedUserId(newUserId);
-    } else if (!user) {
-      setGeneratedUserId('');
-    }
-  }, [nameValue, user, existingUserIds]);
 
   useEffect(() => {
-    if (user) {
-      setGeneratedUserId(user.userId);
-      form.reset({
-        name: user.name,
-        email: user.email || '',
-        phone: user.phone,
-        address: user.address,
-        role: user.role as 'manager' | 'staff',
-        status: user.status,
-        managerId: user.managerId || '',
-        password: '',
-      });
-    } else {
-      setGeneratedUserId('');
+    if (open) {
       form.reset({
         name: '',
         email: '',
         phone: '',
         address: '',
         role: 'staff',
-        status: 'active',
         managerId: '',
         password: '',
       });
     }
-  }, [user, form, open]);
-
-  const getDefaultPermissions = (role: UserRole): Permission[] => {
-    if (role === 'manager') {
-      return [
-        { module: 'leads', actions: ['view'] },
-        { module: 'tasks', actions: ['view'] },
-        { module: 'leaves', actions: ['view', 'approve'] },
-        { module: 'reports', actions: ['view'] },
-      ];
-    }
-    return [
-      { module: 'leads', actions: ['view', 'create', 'edit'] },
-      { module: 'tasks', actions: ['view', 'create', 'edit'] },
-      { module: 'leaves', actions: ['view', 'create'] },
-    ];
-  };
+  }, [open, form]);
 
   const handleSubmit = (data: UserFormData) => {
-    const permissions = getDefaultPermissions(data.role);
     onSave({
-      ...data,
-      userId: user ? user.userId : generatedUserId,
-      permissions,
-      password: data.password || (user ? user.password : 'password123'),
+      email: data.email,
+      password: data.password,
+      name: data.name,
+      phone: data.phone,
+      address: data.address || '',
+      role: data.role as UserRole,
+      managerId: data.managerId || undefined,
     });
-    onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>{user ? 'Edit User' : 'Add New User'}</DialogTitle>
+          <DialogTitle>Add New User</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
@@ -171,56 +123,33 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
                 )}
               />
 
-              {/* Auto-generated User ID */}
-              <div className="space-y-2">
-                <FormLabel>User ID (Auto-generated)</FormLabel>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    value={generatedUserId} 
-                    disabled 
-                    className="bg-muted font-mono"
-                    placeholder="Enter name to generate User ID"
-                  />
-                  {generatedUserId && (
-                    <Badge variant="secondary" className="shrink-0">
-                      Login ID
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  This ID will be used for login. It's auto-generated from the user's name.
-                </p>
-              </div>
-
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email (Optional)</FormLabel>
+                    <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter email address" {...field} />
+                      <Input type="email" placeholder="Enter email address (used for login)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {!user && (
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password <span className="text-destructive">*</span></FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Enter password (min 6 characters)" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password <span className="text-destructive">*</span></FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Enter password (min 6 characters)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -282,7 +211,7 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select manager" />
+                            <SelectValue placeholder="Select manager (optional)" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -299,28 +228,6 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
                 />
               )}
 
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status <span className="text-destructive">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <div className="p-4 rounded-lg bg-muted/50 space-y-2">
                 <p className="text-sm font-medium">Default Permissions</p>
                 <p className="text-xs text-muted-foreground">
@@ -331,11 +238,18 @@ export default function UserFormModal({ open, onClose, onSave, user, managers = 
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onClose}>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit" className="btn-accent">
-                  {user ? 'Update User' : 'Create User'}
+                <Button type="submit" className="btn-accent" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create User'
+                  )}
                 </Button>
               </div>
             </form>

@@ -1,45 +1,261 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { User, UserRole } from '@/types';
-import { mockUsers, demoCredentials } from '@/data/mockData';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { UserRole } from '@/types';
+
+interface Profile {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  status: string;
+  manager_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AuthUser {
+  id: string;
+  userId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  role: UserRole;
+  status: string;
+  managerId: string | null;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
+  session: Session | null;
   isAuthenticated: boolean;
-  login: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  isLoading: boolean;
+  adminExists: boolean | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, name: string, phone: string, address: string) => Promise<{ success: boolean; error?: string }>;
+  createUser: (email: string, password: string, name: string, phone: string, address: string, role: UserRole, managerId?: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
+  logout: () => Promise<void>;
   hasPermission: (module: string, action: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [adminExists, setAdminExists] = useState<boolean | null>(null);
 
-  const login = useCallback(async (userId: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // Check credentials by userId
-    const foundUser = mockUsers.find(u => u.userId === userId);
-    
-    if (!foundUser) {
-      return { success: false, error: 'User ID not found' };
+  // Check if admin exists
+  const checkAdminExists = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('admin_exists');
+      if (error) throw error;
+      setAdminExists(data as boolean);
+    } catch (error) {
+      console.error('Error checking admin exists:', error);
+      setAdminExists(false);
     }
-
-    if (foundUser.password !== password) {
-      return { success: false, error: 'Invalid password' };
-    }
-
-    if (foundUser.status !== 'active') {
-      return { success: false, error: 'Account is inactive. Please contact admin.' };
-    }
-
-    setUser(foundUser);
-    return { success: true };
   }, []);
 
-  const logout = useCallback(() => {
+  // Fetch user profile and role
+  const fetchUserData = useCallback(async (authUser: User) => {
+    try {
+      // Fetch profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Fetch role
+      const { data: role, error: roleError } = await supabase.rpc('get_user_role', {
+        _user_id: authUser.id
+      });
+
+      if (roleError) throw roleError;
+
+      const userData: AuthUser = {
+        id: authUser.id,
+        userId: profile.user_id,
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,
+        role: role as UserRole,
+        status: profile.status,
+        managerId: profile.manager_id,
+      };
+
+      setUser(userData);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setUser(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Check admin exists on mount
+    checkAdminExists();
+
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          // Defer Supabase calls with setTimeout
+          setTimeout(() => {
+            fetchUserData(session.user);
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      
+      if (session?.user) {
+        fetchUserData(session.user);
+      }
+      
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchUserData, checkAdminExists]);
+
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        await fetchUserData(data.user);
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Login failed' };
+    }
+  }, [fetchUserData]);
+
+  const signup = useCallback(async (
+    email: string, 
+    password: string, 
+    name: string, 
+    phone: string, 
+    address: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (!data.user) {
+        return { success: false, error: 'Signup failed' };
+      }
+
+      // Generate user_id
+      const userId = `${name.toLowerCase().replace(/\s+/g, '_')}_admin_${Date.now().toString().slice(-4)}`;
+
+      // Create profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          user_id: userId,
+          name,
+          email,
+          phone,
+          address,
+          status: 'active',
+        });
+
+      if (profileError) {
+        return { success: false, error: profileError.message };
+      }
+
+      // Assign admin role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: 'admin',
+        });
+
+      if (roleError) {
+        return { success: false, error: roleError.message };
+      }
+
+      // Refresh admin exists check
+      await checkAdminExists();
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Signup failed' };
+    }
+  }, [checkAdminExists]);
+
+  const createUser = useCallback(async (
+    email: string,
+    password: string,
+    name: string,
+    phone: string,
+    address: string,
+    role: UserRole,
+    managerId?: string
+  ): Promise<{ success: boolean; error?: string; userId?: string }> => {
+    try {
+      // Create user via edge function to bypass auth
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-user', {
+        body: { email, password, name, phone, address, role, managerId },
+      });
+
+      if (authError) {
+        return { success: false, error: authError.message };
+      }
+
+      if (authData.error) {
+        return { success: false, error: authData.error };
+      }
+
+      return { success: true, userId: authData.userId };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to create user' };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
+    setSession(null);
   }, []);
 
   const hasPermission = useCallback((module: string, action: string): boolean => {
@@ -48,15 +264,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Admin has all permissions
     if (user.role === 'admin') return true;
 
-    const permission = user.permissions.find(p => p.module === module);
-    return permission ? permission.actions.includes(action as any) : false;
+    // Manager permissions
+    if (user.role === 'manager') {
+      const managerPermissions: Record<string, string[]> = {
+        leads: ['view', 'create', 'edit'],
+        tasks: ['view', 'create', 'edit'],
+        projects: ['view'],
+        leaves: ['view', 'approve'],
+        reports: ['view'],
+      };
+      return managerPermissions[module]?.includes(action) || false;
+    }
+
+    // Staff permissions
+    if (user.role === 'staff') {
+      const staffPermissions: Record<string, string[]> = {
+        leads: ['view', 'create', 'edit'],
+        tasks: ['view', 'create', 'edit'],
+        projects: ['view'],
+        leaves: ['view', 'create'],
+      };
+      return staffPermissions[module]?.includes(action) || false;
+    }
+
+    return false;
   }, [user]);
 
   return (
     <AuthContext.Provider value={{ 
       user, 
+      session,
       isAuthenticated: !!user, 
+      isLoading,
+      adminExists,
       login, 
+      signup,
+      createUser,
       logout, 
       hasPermission 
     }}>
