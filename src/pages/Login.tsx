@@ -379,6 +379,39 @@ export default function Login() {
               </p>
             </div>
           )}
+
+          {/* Create Admin Account link - show when no admin exists */}
+          {!isSignupMode && adminExists === false && (
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground text-sm mb-2">No admin account exists yet.</p>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsSignupMode(true);
+                  setLoginType("admin");
+                }}
+                className="w-full"
+              >
+                Create Admin Account
+              </Button>
+            </div>
+          )}
+
+          {/* Toggle between login and signup for admin */}
+          {isSignupMode && (
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground text-sm">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsSignupMode(false)}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Sign In
+                </button>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
