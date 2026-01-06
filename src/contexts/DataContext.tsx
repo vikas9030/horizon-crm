@@ -217,33 +217,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData();
   }, [refreshData]);
 
-  // Real-time subscriptions with debounce
+  // Real-time subscriptions - immediate refresh on changes
   useEffect(() => {
-    let timeout: NodeJS.Timeout | null = null;
-    
-    const debouncedRefresh = () => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        refreshData();
-      }, 300);
-    };
-
     const channel = supabase
       .channel('data-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => refreshData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => refreshData())
       .subscribe();
 
     return () => {
-      if (timeout) clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
   }, [refreshData]);
 
   const addLead = useCallback(async (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const { error } = await supabase.from('leads').insert([{
+    const { data, error } = await supabase.from('leads').insert([{
       name: lead.name,
       phone: lead.phone,
       email: lead.email,
@@ -260,7 +250,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       notes: lead.notes as any,
       created_by: lead.createdBy,
       assigned_project: lead.assignedProject,
-    }]);
+    }]).select();
 
     if (error) {
       console.error('Error adding lead:', error);
@@ -268,15 +258,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
-    if (user) {
-      void logActivity({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        module: 'leads',
-        action: 'created',
-        details: `created lead "${lead.name}"`,
-      });
+    // Optimistically add the new lead to state
+    if (data && data[0]) {
+      const newLead = dbToLead(data[0], projects);
+      setLeads(prev => [newLead, ...prev]);
     }
 
     if (notificationContext?.addNotification) {
@@ -287,7 +272,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(),
       });
     }
-  }, [notificationContext, user]);
+  }, [notificationContext, projects]);
 
   const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
     const updateData: any = {};
@@ -352,7 +337,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [leads, user]);
 
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const { error } = await supabase.from('tasks').insert([{
+    const { data, error } = await supabase.from('tasks').insert([{
       lead_id: task.leadId,
       status: task.status,
       next_action_date: task.nextActionDate?.toISOString(),
@@ -360,7 +345,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       attachments: task.attachments as any,
       assigned_to: task.assignedTo,
       assigned_project: task.assignedProject,
-    }]);
+    }]).select();
 
     if (error) {
       console.error('Error adding task:', error);
@@ -368,16 +353,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
-    if (user) {
-      const leadName = task.lead?.name || leads.find(l => l.id === task.leadId)?.name || 'lead';
-      void logActivity({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        module: 'tasks',
-        action: 'created',
-        details: `created task for "${leadName}"`,
-      });
+    // Optimistically add the new task to state
+    if (data && data[0]) {
+      const newTask = dbToTask(data[0], leads);
+      setTasks(prev => [newTask, ...prev]);
     }
 
     if (notificationContext?.addNotification) {
@@ -388,7 +367,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(),
       });
     }
-  }, [notificationContext, user, leads]);
+  }, [notificationContext, leads]);
 
   const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
     const updateData: any = {};
@@ -444,7 +423,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, user]);
 
   const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt'>) => {
-    const { error } = await supabase.from('projects').insert([{
+    const { data, error } = await supabase.from('projects').insert([{
       name: project.name,
       location: project.location,
       type: project.type,
@@ -460,12 +439,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       cover_image: project.coverImage,
       status: project.status,
       created_by: (project as any).createdBy || 'system',
-    }]);
+    }]).select();
 
     if (error) {
       console.error('Error adding project:', error);
       toast.error('Failed to add project');
       throw error;
+    }
+
+    // Optimistically add the new project to state
+    if (data && data[0]) {
+      const newProject = dbToProject(data[0]);
+      setProjects(prev => [newProject, ...prev]);
     }
   }, []);
 
@@ -506,7 +491,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addAnnouncement = useCallback(async (announcement: Omit<Announcement, 'id' | 'createdAt'>) => {
-    const { error } = await supabase.from('announcements').insert([{
+    const { data, error } = await supabase.from('announcements').insert([{
       title: announcement.title,
       message: announcement.message,
       priority: announcement.priority,
@@ -514,12 +499,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       created_by: announcement.createdBy,
       expires_at: announcement.expiresAt?.toISOString(),
       is_active: announcement.isActive,
-    }]);
+    }]).select();
 
     if (error) {
       console.error('Error adding announcement:', error);
       toast.error('Failed to add announcement');
       throw error;
+    }
+
+    // Optimistically add the new announcement to state
+    if (data && data[0]) {
+      const newAnnouncement = dbToAnnouncement(data[0]);
+      setAnnouncements(prev => [newAnnouncement, ...prev]);
     }
 
     if (notificationContext?.addNotification) {
