@@ -22,13 +22,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus, Phone, Mail } from "lucide-react";
+import { Search, Calendar, MoreHorizontal, Eye, Edit, Plus, Phone, Mail, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -44,7 +55,7 @@ interface TaskListProps {
 
 export default function TaskList({ canEdit = true, canCreate = true, isManagerView = false }: TaskListProps) {
   const { user } = useAuth();
-  const { tasks, leads, projects, addTask, updateTask } = useData();
+  const { tasks, leads, projects, addTask, updateTask, deleteTask } = useData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -54,6 +65,8 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -77,6 +90,40 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       return matchesSearch && matchesStatus && matchesProject && matchesDate;
     });
   }, [tasks, searchQuery, statusFilter, projectFilter, dateRange]);
+
+  const allSelected = filteredTasks.length > 0 && filteredTasks.every(task => selectedIds.has(task.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTasks.map(task => task.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      for (const id of selectedIds) {
+        await deleteTask(id);
+      }
+      toast.success(`${selectedIds.size} task(s) deleted successfully`);
+      setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+    } catch (error) {
+      toast.error("Failed to delete some tasks");
+    }
+  };
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     try {
@@ -241,8 +288,20 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-between">
-          <TaskExcelImportExport onImport={handleImportTasks} />
+        <div className="flex gap-2 flex-wrap justify-between items-center">
+          <div className="flex gap-2 items-center">
+            <TaskExcelImportExport onImport={handleImportTasks} />
+            {someSelected && (
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete ({selectedIds.size})
+              </Button>
+            )}
+          </div>
           {canCreate && (
             <Button onClick={handleAddTask} className="btn-accent shrink-0">
               <Plus className="w-4 h-4 mr-2" />
@@ -298,6 +357,13 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
+              <TableHead className="w-12">
+                <Checkbox 
+                  checked={allSelected} 
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="font-semibold">Lead Name</TableHead>
               {!isManagerView && <TableHead className="font-semibold">Contact</TableHead>}
               {!isManagerView && <TableHead className="font-semibold">Requirement</TableHead>}
@@ -316,6 +382,13 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
                 className="table-row-hover animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
+                <TableCell>
+                  <Checkbox 
+                    checked={selectedIds.has(task.id)} 
+                    onCheckedChange={() => toggleSelect(task.id)}
+                    aria-label={`Select ${task.lead.name}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <p className="font-medium text-foreground">{task.lead.name}</p>
                 </TableCell>
@@ -436,11 +509,28 @@ export default function TaskList({ canEdit = true, canCreate = true, isManagerVi
       onEdit={() => {
         if (viewingTask) {
           handleEditTask(viewingTask);
-          setViewingTask(null);
+        setViewingTask(null);
         }
       }}
       getProjectName={getProjectName}
     />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Tasks</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIds.size} task(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
   </div>
 );
 }

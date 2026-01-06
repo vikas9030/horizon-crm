@@ -41,6 +41,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -71,6 +82,8 @@ export default function LeadList({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -95,6 +108,40 @@ export default function LeadList({
       return matchesSearch && matchesStatus && matchesProject && matchesDate;
     });
   }, [leads, searchQuery, statusFilter, projectFilter, dateRange]);
+
+  const allSelected = filteredLeads.length > 0 && filteredLeads.every(lead => selectedIds.has(lead.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLeads.map(lead => lead.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      for (const id of selectedIds) {
+        await deleteLead(id);
+      }
+      toast.success(`${selectedIds.size} lead(s) deleted successfully`);
+      setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+    } catch (error) {
+      toast.error("Failed to delete some leads");
+    }
+  };
 
   const handleSaveLead = async (leadData: Partial<Lead>) => {
     try {
@@ -273,8 +320,20 @@ export default function LeadList({
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-between">
-          <ExcelImportExport onImport={handleImportLeads} />
+        <div className="flex gap-2 flex-wrap justify-between items-center">
+          <div className="flex gap-2 items-center">
+            <ExcelImportExport onImport={handleImportLeads} />
+            {someSelected && (
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete ({selectedIds.size})
+              </Button>
+            )}
+          </div>
           {canCreate && (
             <Button onClick={() => setIsFormOpen(true)} className="btn-accent shrink-0">
               <Plus className="w-4 h-4 mr-2" />
@@ -344,6 +403,13 @@ export default function LeadList({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
+              <TableHead className="w-12">
+                <Checkbox 
+                  checked={allSelected} 
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="font-semibold">
                 <div className="flex items-center gap-2">
                   Name
@@ -368,6 +434,13 @@ export default function LeadList({
                 className="table-row-hover animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
+                <TableCell>
+                  <Checkbox 
+                    checked={selectedIds.has(lead.id)} 
+                    onCheckedChange={() => toggleSelect(lead.id)}
+                    aria-label={`Select ${lead.name}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div>
                     <p className="font-medium text-foreground">{lead.name}</p>
@@ -510,6 +583,23 @@ export default function LeadList({
           }
         }}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Leads</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIds.size} lead(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
