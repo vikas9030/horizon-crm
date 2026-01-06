@@ -56,7 +56,7 @@ const getRemindersCount = () => {
 };
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'staff'], getBadge: getRemindersCount },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '', roles: ['admin', 'manager', 'staff'] },
   { label: 'Users', icon: Users, href: '/users', roles: ['admin'] },
   { label: 'Branding', icon: Palette, href: '/branding', roles: ['admin'] },
   { label: 'Announcements', icon: Megaphone, href: '/announcements', roles: ['admin', 'manager', 'staff'] },
