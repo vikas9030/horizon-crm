@@ -438,6 +438,14 @@ export type Database = {
     }
     Functions: {
       admin_exists: { Args: never; Returns: boolean }
+      get_actor: {
+        Args: never
+        Returns: {
+          actor_id: string
+          actor_name: string
+          actor_role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -449,6 +457,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      safe_uuid: { Args: { p_text: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "manager" | "staff"
