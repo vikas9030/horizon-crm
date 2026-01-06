@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Search, Plus, MoreHorizontal, Edit, UserX, Trash2, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +67,8 @@ export default function UserList() {
   const [editingUser, setEditingUser] = useState<DBUser | null>(null);
   const [deleteUser, setDeleteUser] = useState<DBUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const managers = users.filter(u => u.role === 'manager');
 
@@ -120,6 +123,45 @@ export default function UserList() {
     
     return matchesSearch && matchesRole;
   });
+
+  const allSelected = filteredUsers.length > 0 && filteredUsers.every(user => selectedIds.has(user.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredUsers.map(user => user.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      for (const id of selectedIds) {
+        await supabase.functions.invoke('delete-user', {
+          body: { userId: id }
+        });
+      }
+      setUsers(prev => prev.filter(u => !selectedIds.has(u.id)));
+      toast.success(`${selectedIds.size} user(s) deleted successfully`);
+      setSelectedIds(new Set());
+      setShowBulkDeleteDialog(false);
+    } catch (error: any) {
+      toast.error('Failed to delete some users', {
+        description: error.message
+      });
+    }
+  };
 
   const handleSaveUser = async (userData: {
     email: string;
@@ -260,7 +302,7 @@ export default function UserList() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-4 flex-1 w-full sm:w-auto">
+        <div className="flex gap-4 flex-1 w-full sm:w-auto flex-wrap items-center">
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -281,6 +323,17 @@ export default function UserList() {
               <SelectItem value="staff">Staff</SelectItem>
             </SelectContent>
           </Select>
+
+          {someSelected && (
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => setShowBulkDeleteDialog(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete ({selectedIds.size})
+            </Button>
+          )}
         </div>
 
         <Button className="btn-accent shrink-0" onClick={() => setIsFormOpen(true)}>
@@ -294,6 +347,13 @@ export default function UserList() {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
+              <TableHead className="w-12">
+                <Checkbox 
+                  checked={allSelected} 
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead className="font-semibold">User</TableHead>
               <TableHead className="font-semibold">User ID</TableHead>
               <TableHead className="font-semibold hidden sm:table-cell">Contact</TableHead>
@@ -310,6 +370,13 @@ export default function UserList() {
                 className="table-row-hover animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
+                <TableCell>
+                  <Checkbox 
+                    checked={selectedIds.has(user.id)} 
+                    onCheckedChange={() => toggleSelect(user.id)}
+                    aria-label={`Select ${user.name}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold shrink-0">
@@ -412,12 +479,29 @@ export default function UserList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deleteUser?.name}? This action cannot be undone.
+              Are you sure you want to delete {deleteUser?.name}? This action cannot be undone. All data created by this user will also be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIds.size} user(s)? This action cannot be undone. All data created by these users will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
